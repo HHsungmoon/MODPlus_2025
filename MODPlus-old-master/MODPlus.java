@@ -387,6 +387,8 @@ public class MODPlus {
 
 		int index = 1;
 		int iterSize= scaniter.size();
+
+		// 병렬처리의 핵심 부분
 		while( scaniter.hasNext() ){
 			
 			ArrayList<MSMScan> chargedSpectra = scaniter.getNext();
