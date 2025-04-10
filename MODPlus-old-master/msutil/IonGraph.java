@@ -4,6 +4,7 @@ import java.util.ArrayList;
 
 import modi.Constants;
 import modi.PTM;
+import modi.ThreadPoolManager;
 
 public abstract class IonGraph extends ArrayList<IonNode> {
 	
@@ -109,8 +110,9 @@ public abstract class IonGraph extends ArrayList<IonNode> {
 				modifiedMass += ptmMass[i];
 			}
 		}
-		
-		int modAcid = ( modifiedMass < Constants.precursorTolerance )?  0 : (int)Math.ceil( modifiedMass / 110 );	
+
+		int slot = ThreadPoolManager.getSlotIndex();
+		int modAcid = ( modifiedMass < Constants.precursorTolerance[slot] )?  0 : (int)Math.ceil( modifiedMass / 110 );
 		double penalty = modAcid + modifiedResd/2;
 		seqCoverage = (double)seqHit/(len+penalty);		
 		ionCoverage = (double)bbHit /(len+penalty);

@@ -3,6 +3,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 
 import modi.Constants;
+import modi.ThreadPoolManager;
 
 public class PGraph extends ArrayList<PNode>{
 	private double 	PMZ = 0., obsvMW = 0., corrMW = 0.;
@@ -33,8 +34,12 @@ public class PGraph extends ArrayList<PNode>{
 	
 	public double correctMW( boolean dynamicCorrection ){ 
 		
-		if( Constants.INSTRUMENT_TYPE == Constants.msms_type.QTOF ) return obsvMW;				
-		if( Constants.precursorTolerance <= Constants.fragmentTolerance ) return obsvMW;	
+		if( Constants.INSTRUMENT_TYPE == Constants.msms_type.QTOF )
+			return obsvMW;
+
+		int slot = ThreadPoolManager.getSlotIndex();
+		if( Constants.precursorTolerance[slot] <= Constants.fragmentTolerance )
+			return obsvMW;
 		
 		PRM prmTable;
 		if( charge > 2 ) prmTable= new PRMforHighCharge(this);

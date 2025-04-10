@@ -2,6 +2,7 @@ package msutil;
 
 import modi.Constants;
 import modi.PTM;
+import modi.ThreadPoolManager;
 
 public class Scoring {
 	
@@ -29,8 +30,9 @@ public class Scoring {
 		IonGraph iGraph;
 		if( Constants.INSTRUMENT_TYPE == Constants.msms_type.QTOF ) iGraph = new TOFGraph(peptide, ptms, graph);
 		else iGraph= new TRAPGraph(peptide, ptms, graph);
-		
-		if( !Constants.isWithinTolerance(iGraph.getCalculatedMW(), graph.getObservedMW(), Constants.precursorTolerance) ) 
+
+		int slot = ThreadPoolManager.getSlotIndex();
+		if( !Constants.isWithinTolerance(iGraph.getCalculatedMW(), graph.getObservedMW(), Constants.precursorTolerance[slot]) )
 			return -1;
 		
 		iGraph.setScore(graph);

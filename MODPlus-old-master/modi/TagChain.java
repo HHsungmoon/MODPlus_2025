@@ -149,7 +149,8 @@ public class TagChain extends TreeSet<SpecInterpretation> implements Comparable<
 		for( SpecInterpretation t : this ){
 			if( t instanceof Gap ) {
 				Gap gap= (Gap)t;
-				if( Math.abs( gap.getOffset() ) > Constants.gapTolerance ) {
+				int slot = ThreadPoolManager.getSlotIndex();
+				if( Math.abs( gap.getOffset() ) > Constants.gapTolerance[slot] ) {
 					modtype.add( Constants.round(gap.getOffset()) );
 				}
 			}

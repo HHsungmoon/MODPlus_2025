@@ -70,7 +70,7 @@ public class Constants {
 	public static int			missCleavages = 2;
 	
 	public static int			minNoOfC13 = 0;
-	public static int			maxNoOfC13 = 0;
+	public static int[] maxNoOfC13 = new int[ThreadPoolManager.MAX_THREAD]; // 병렬처리함.
 	public static int			rangeForIsotopeIncrement = 0;
 	
 	public static double		alkylatedToCys = 0;
@@ -81,6 +81,7 @@ public class Constants {
 	public static double		minNormIntensity = 0.00;
 
 	// 문제점 //
+	/*
 	public static double		precursorAccuracy = 0.5;
 	public static double		precursorTolerance = 0.5;
 	public static double		gapTolerance = 0.6;	
@@ -88,18 +89,40 @@ public class Constants {
 
 	public static PTMDB 		variableModifications;
 	public static PTMDB 		fixedModifications;
+	*/
 	//----
 
-	public static double		minModifiedMass = -precursorTolerance;
-	public static double		maxModifiedMass = precursorTolerance;
+	public static double[] precursorAccuracy = new double[ThreadPoolManager.MAX_THREAD];
+	public static double[] precursorTolerance = new double[ThreadPoolManager.MAX_THREAD];
+	public static double[] gapTolerance = new double[ThreadPoolManager.MAX_THREAD];
+	public static double[] gapAccuracy = new double[ThreadPoolManager.MAX_THREAD];
+	public static double[] nonModifiedDelta = new double[ThreadPoolManager.MAX_THREAD]; // 0.3 massToleranceForDenovo 로 설정해야함.
+
+	public static PTMDB[] variableModifications = new PTMDB[ThreadPoolManager.MAX_THREAD];
+	public static PTMDB[] fixedModifications = new PTMDB[ThreadPoolManager.MAX_THREAD];
+
+	public static double		minModifiedMass = -0.5; // 기존에는 = precursorTolerance
+	public static double		maxModifiedMass = 0.5;
 	public static boolean		canBeModifiedOnFixedAA = false;
 
-	public static boolean		isInModifiedRange( double v ){
-		if( minModifiedMass-gapTolerance < v && v < maxModifiedMass+gapTolerance ) return true;
-		else if( Math.abs(v) <= gapTolerance ) return true;
-		else return false;
+	public static boolean isInModifiedRange(double v) {
+		int idx = ThreadPoolManager.getSlotIndex();  // 현재 스레드의 슬롯 index
+
+		double minMod = getMinModifiedMass();
+		double maxMod = getMaxModifiedMass();
+		double tol = gapTolerance[idx];
+
+		return (minMod - tol < v && v < maxMod + tol) || Math.abs(v) <= tol;
 	}
-	
+
+	public static double getMinModifiedMass() {
+		return -precursorTolerance[ThreadPoolManager.getSlotIndex()];
+	}
+
+	public static double getMaxModifiedMass() {
+		return precursorTolerance[ThreadPoolManager.getSlotIndex()];
+	}
+
 	public static int			MSResolution 	= 0; // if 1, high (FT, OrbiTrap)
 	public static int			MSMSResolution 	= 0; // if 1, high (FT, OrbiTrap)
 	
@@ -128,8 +151,6 @@ public class Constants {
 	
 	public static String		PTM_FILE_NAME = "PTMDB.xml";
 
-	public static double		nonModifiedDelta = massToleranceForDenovo; // 병렬문제..
-
 	public static String		isobaricTag = "";
 	public static double[]		reporterMassOfIsobaricTag = null;
 	
@@ -146,6 +167,7 @@ public class Constants {
 			minNumOfPeaksInWindow = 4;
 			rNorm[0]= 6;
 		}
+
 		if( massToleranceForDenovo > fragmentTolerance/2 )
 			massToleranceForDenovo = fragmentTolerance/2;
 		if( fragmentTolerance < 0.1 )
@@ -155,12 +177,24 @@ public class Constants {
 		
 		if( canBeModifiedOnFixedAA ){			
 			double fixedOff = -20;
-			if( fixedModifications.size() > 0 ){
-				for( PTM p : fixedModifications ){
-					fixedOff -= p.getMassDifference();
+			for (int i = 0; i < ThreadPoolManager.MAX_THREAD; i++){
+				if( fixedModifications[i].size() > 0 ){
+					for( PTM p : fixedModifications[i] ){
+						fixedOff -= p.getMassDifference();
+					}
+					if( fixedOff < minModifiedMass )
+						minModifiedMass = fixedOff;
 				}
-				if( fixedOff < minModifiedMass ) minModifiedMass = fixedOff;
 			}
+		}
+
+		for (int i = 1; i < ThreadPoolManager.MAX_THREAD; i++) {
+			precursorTolerance[i]     = precursorTolerance[0] ;
+			precursorAccuracy[i]      = precursorAccuracy[0]  ;
+			gapTolerance[i]           = gapTolerance[0]       ;
+			gapAccuracy[i]            = gapAccuracy[0]        ;
+			nonModifiedDelta[i]       = nonModifiedDelta[0]   ;
+			maxNoOfC13[i]             = maxNoOfC13[0]         ;
 		}
 	}
 	
@@ -176,24 +210,27 @@ public class Constants {
 	public static String	getString(double value){
 		return new DecimalFormat("#.###").format(value).toString();
 	}
-	
-	public static boolean isWithinTolerance(double calc, double obsv, double tol){
 
-		if( minNoOfC13 ==0 && maxNoOfC13 == 0 ) {
-			if( Math.abs(calc-obsv) > tol ) return false;
-		}
-		else {
-			double tempError = obsv - calc;		
-			int isoerr = round( tempError / IsotopeSpace );		
-			if( isoerr < minNoOfC13 || maxNoOfC13 < isoerr ) return false;		
-			if(	Math.abs( tempError - isoerr*IsotopeSpace ) > precursorAccuracy ) return false;
+	public static boolean isWithinTolerance(double calc, double obsv, double tol) {
+		int slot = ThreadPoolManager.getSlotIndex();
+
+		if (minNoOfC13 == 0 && maxNoOfC13[slot] == 0) {
+			return Math.abs(calc - obsv) <= tol;
+		} else {
+			double tempError = obsv - calc;
+			int isoerr = round(tempError / IsotopeSpace);
+			if (isoerr < minNoOfC13 || isoerr > maxNoOfC13[slot]) return false;
+			if (Math.abs(tempError - isoerr * IsotopeSpace) > precursorAccuracy[slot]) return false;
 		}
 		return true;
 	}
-	public static boolean isWithinAccuracy(double err){		
-		if( gapAccuracy > 0.5 ) return true;
-		int isoerr = round( err / IsotopeSpace );		
-		if(	Math.abs( err - isoerr*IsotopeSpace ) > gapAccuracy ) return false;
+
+	public static boolean isWithinAccuracy(double err) {
+		int slot = ThreadPoolManager.getSlotIndex();
+
+		if (gapAccuracy[slot] > 0.5) return true;
+		int isoerr = round(err / IsotopeSpace);
+		if (Math.abs(err - isoerr * IsotopeSpace) > gapAccuracy[slot]) return false;
 		return true;
 	}
 	
@@ -202,7 +239,9 @@ public class Constants {
 	}
 
 	public static int round(double a){
-		if( a > 0 ) return (int)(a + 0.5);
-		else return (int)(a - 0.5);
+		if( a > 0 )
+			return (int)(a + 0.5);
+		else
+			return (int)(a - 0.5);
 	}
 }

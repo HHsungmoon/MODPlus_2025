@@ -6,6 +6,7 @@ import java.util.Collections;
 import modi.Constants;
 import modi.Peak;
 import modi.Spectrum;
+import modi.ThreadPoolManager;
 import msutil.MSMass;
 
 public class MSMScan {
@@ -52,28 +53,35 @@ public class MSMScan {
 	public long 	getOffset(){ return offset; }	
 	public String 	getHeader(){ return String.format("%d\t%.4f\t%d\t%d\t%s",
 													specIndex, neutralMW, charge, scanNo, title); }
-	
-	public Spectrum getSpectrum() { 
-		Constants.precursorTolerance= precursorTolerance;
-		Constants.precursorAccuracy	= precursorAccuracy;
-		Constants.gapTolerance 		= gapTolerance;
-		Constants.gapAccuracy 		= precursorAccuracy + 2*Constants.fragmentTolerance;
-		Constants.nonModifiedDelta 	= nonModifiedDelta;
-		Constants.maxNoOfC13 		= maxNoOfC13;
-		return peaklist; 
+
+	public Spectrum getSpectrum() {
+		int slot = ThreadPoolManager.getSlotIndex(); // 현재 스레드의 인덱스
+
+		Constants.precursorTolerance[slot] = precursorTolerance;
+		Constants.precursorAccuracy[slot]  = precursorAccuracy;
+		Constants.gapTolerance[slot]       = gapTolerance;
+		Constants.gapAccuracy[slot]        = precursorAccuracy + 2 * Constants.fragmentTolerance;
+		Constants.nonModifiedDelta[slot]   = nonModifiedDelta;
+		Constants.maxNoOfC13[slot] = maxNoOfC13;
+
+		return peaklist;
 	}
 	
 	public boolean setSpectrum(ArrayList<RawPeak> rawPL) {
-		
+		int slot = ThreadPoolManager.getSlotIndex();
 		if( neutralMW < minMW || Constants.maxPeptideMass < neutralMW ) return false; 
 				
 		if( Constants.reporterMassOfIsobaricTag != null ) removeReporterIons(rawPL, Constants.reporterMassOfIsobaricTag);
 		
-		if( Constants.rangeForIsotopeIncrement != 0 ) maxNoOfC13 = (int)Math.ceil( neutralMW / Constants.rangeForIsotopeIncrement );
-		else maxNoOfC13 = Constants.maxNoOfC13;
+		if( Constants.rangeForIsotopeIncrement != 0 )
+			maxNoOfC13 = (int)Math.ceil( neutralMW / Constants.rangeForIsotopeIncrement );
+		else
+			maxNoOfC13 = Constants.maxNoOfC13[slot];
 		
-		if( Constants.PPMTolerance != 0 ) precursorAccuracy = Constants.PPMtoDalton( neutralMW, Constants.PPMTolerance );
-		else precursorAccuracy = Constants.precursorAccuracy;
+		if( Constants.PPMTolerance != 0 )
+			precursorAccuracy = Constants.PPMtoDalton( neutralMW, Constants.PPMTolerance );
+		else
+			precursorAccuracy = Constants.precursorAccuracy[slot];
 		
 		precursorTolerance = precursorAccuracy + maxNoOfC13*Constants.IsotopeSpace;
 		

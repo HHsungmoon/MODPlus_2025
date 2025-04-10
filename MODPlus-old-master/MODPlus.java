@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 
+import modi.ThreadPoolManager;
 import org.jdom.Document;
 import org.jdom.Element;
 import org.jdom.JDOMException;
@@ -76,7 +77,16 @@ public class MODPlus {
 		System.out.println("Release Date: Apr 27, 2015");
 		System.out.println("************************************************************************************");
 		System.out.println();
-		
+
+		ThreadPoolManager.SLOT_INDEX.set(1);
+		for (int i = 0; i < ThreadPoolManager.MAX_THREAD; i++) {
+			Constants.precursorTolerance[i]     = 0.5;
+			Constants.precursorAccuracy[i]      = 0.5;
+			Constants.gapTolerance[i]           = 0.6;
+			Constants.gapAccuracy[i]            = 1.6;
+			Constants.nonModifiedDelta[i]       = Constants.massToleranceForDenovo;
+			Constants.maxNoOfC13[i]             = 0;
+		}
 		run(args[0]);
 	}
 	
@@ -107,12 +117,11 @@ public class MODPlus {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-	}	
-	
-	protected static int set_parameter( String Prixparam ) throws Exception {			
-		
+	}
+
+	protected static int set_parameter( String Prixparam ) throws Exception {
 		System.out.println("Reading parameter.....");
-		
+
 		Document doc;
 		try {
 			doc = new SAXBuilder().build( Prixparam );
@@ -123,7 +132,7 @@ public class MODPlus {
 			System.out.println( message[5] );
 			return 5;
 		}
-		
+
 		Element search = doc.getRootElement();
 		Constants.runDate = DateFormat.getDateInstance().format( new Date() );
 		if ( search.getAttributeValue("user") != null ){
@@ -133,30 +142,30 @@ public class MODPlus {
 			Constants.runTitle = search.getAttributeValue("title");
 		}
 		else Constants.runTitle = String.valueOf( System.currentTimeMillis() );
-		
+
 		Element dataset = search.getChild("dataset");
 		if ( dataset != null ){
 			Constants.SPECTRUM_LOCAL_PATH = dataset.getAttributeValue("local_path");
 			if( Constants.SPECTRUM_LOCAL_PATH == "" ){
 				System.out.println( message[4] );
 				return 4;
-			}		
-			
+			}
+
 			String type = dataset.getAttributeValue("format");
-			if (type.compareToIgnoreCase("mgf")==0) Constants.SPECTRA_FILE_TYPE = Constants.spectra_format.MGF;	
+			if (type.compareToIgnoreCase("mgf")==0) Constants.SPECTRA_FILE_TYPE = Constants.spectra_format.MGF;
 			else if (type.compareToIgnoreCase("pkl")==0) Constants.SPECTRA_FILE_TYPE = Constants.spectra_format.PKL;
-			else if (type.compareToIgnoreCase("ms2")==0) Constants.SPECTRA_FILE_TYPE = Constants.spectra_format.MS2;	
-			else if (type.compareToIgnoreCase("dta")==0) Constants.SPECTRA_FILE_TYPE = Constants.spectra_format.DTA;					
+			else if (type.compareToIgnoreCase("ms2")==0) Constants.SPECTRA_FILE_TYPE = Constants.spectra_format.MS2;
+			else if (type.compareToIgnoreCase("dta")==0) Constants.SPECTRA_FILE_TYPE = Constants.spectra_format.DTA;
 			else if (type.compareToIgnoreCase("mzxml")==0) Constants.SPECTRA_FILE_TYPE = Constants.spectra_format.MZXML;
 			else if (type.compareToIgnoreCase("zip")==0) Constants.SPECTRA_FILE_TYPE = Constants.spectra_format.ZIPDTA;
-			
+
 			Constants.INSTRUMENT_NAME = dataset.getAttributeValue("instrument");
 			if( Constants.INSTRUMENT_NAME.equals("QTOF") ) Constants.INSTRUMENT_TYPE = Constants.msms_type.QTOF;
 			else Constants.INSTRUMENT_TYPE = Constants.msms_type.TRAP;
 		}
 		System.out.print("Input datasest : "+Constants.SPECTRUM_LOCAL_PATH);
 		System.out.println(" ("+Constants.SPECTRA_FILE_TYPE+" type)");
-		
+
 		Element database = search.getChild("database");
 		if ( database != null ){
 			Constants.PROTEIN_DB_LOCAL_PATH = database.getAttributeValue("local_path");
@@ -164,9 +173,9 @@ public class MODPlus {
 				System.out.println( message[4] );
 				return 4;
 			}
-		}		
+		}
 		System.out.println("Input database : "+Constants.PROTEIN_DB_LOCAL_PATH);
-		
+
 		Element enzyme = search.getChild("enzyme");//DEPRECATED
 		if ( enzyme != null ){
 			String enzymeName = enzyme.getAttributeValue("name");
@@ -174,7 +183,7 @@ public class MODPlus {
 			String sence = enzyme.getAttributeValue("sence");
 			Constants.protease = new ProtCutter(enzymeName, cut, sence);
 		}//*/
-		
+
 		Element com_enzyme = search.getChild("combined_enzyme");
 		if ( com_enzyme != null ){
 			String enzymeName = com_enzyme.getAttributeValue("name");
@@ -182,24 +191,24 @@ public class MODPlus {
 			String cc = com_enzyme.getAttributeValue("cterm_cleave");
 			Constants.protease = new ProtCutter(enzymeName, nn, cc, true);
 		}
-		
+
 		Constants.alkylatedToCys = 0; //DEPRECATED
 		Element cys_alkylated = search.getChild("cys_alkylated");
 		if ( cys_alkylated != null ){
-			Constants.alkylationMethod = cys_alkylated.getAttributeValue("name");			
+			Constants.alkylationMethod = cys_alkylated.getAttributeValue("name");
 			Constants.alkylatedToCys = Double.valueOf(cys_alkylated.getAttributeValue("massdiff"));
 			AminoAcid.modifiedAminoAcidMass('C', Constants.alkylatedToCys);
 			MSMass.modifiedAminoAcidMass('C', Constants.alkylatedToCys);
 		}
-		
+
 		Element instrument_resolution = search.getChild("instrument_resolution");
 		if ( instrument_resolution != null ){
 			Constants.MSResolution = ( "high".compareToIgnoreCase(instrument_resolution.getAttributeValue("ms")) == 0 )? 1 : 0;
-			if( Constants.MSResolution == 1 ) System.out.println("High resolution MS!!");		
+			if( Constants.MSResolution == 1 ) System.out.println("High resolution MS!!");
 			Constants.MSMSResolution = ( "high".compareToIgnoreCase(instrument_resolution.getAttributeValue("msms")) == 0 )? 1 : 0;
 			if( Constants.MSMSResolution == 1 ) System.out.println("High resolution MS/MS!!");
-		}		
-		
+		}
+
 		Element parameters = search.getChild("parameters");
 		if ( parameters != null ){
 			Element param;
@@ -209,29 +218,29 @@ public class MODPlus {
 				Constants.numberOfEnzymaticTermini = Integer.valueOf(param.getAttributeValue("min_number_termini"));
 				if( Constants.numberOfEnzymaticTermini > 2 ) Constants.numberOfEnzymaticTermini = 2;
 			}
-			
+
 			param = parameters.getChild("isotope_error");
 			if ( param != null ){
 				if( param.getAttributeValue("min_C13_number") != null )
 					Constants.minNoOfC13 = Integer.valueOf(param.getAttributeValue("min_C13_number"));
-				
+
 				if( param.getAttributeValue("max_C13_number") != null )
-					Constants.maxNoOfC13 = Integer.valueOf(param.getAttributeValue("max_C13_number"));
-				
-				if( Constants.maxNoOfC13 == 0 && param.getAttributeValue("increment_per_dalton") != null )
+					Constants.maxNoOfC13[0] = Integer.valueOf(param.getAttributeValue("max_C13_number"));
+
+				if( Constants.maxNoOfC13[0] == 0 && param.getAttributeValue("increment_per_dalton") != null )
 					Constants.rangeForIsotopeIncrement = Integer.valueOf(param.getAttributeValue("increment_per_dalton"));
 			}
-			
+
 			param = parameters.getChild("peptide_mass_tol");
 			if ( param != null ){
-				if( param.getAttributeValue("unit").compareToIgnoreCase("ppm") == 0 ){					
+				if( param.getAttributeValue("unit").compareToIgnoreCase("ppm") == 0 ){
 					Constants.PPMTolerance = Double.valueOf(param.getAttributeValue("value"));
 				}
 				else {
-					Constants.precursorTolerance = Constants.precursorAccuracy = Double.valueOf(param.getAttributeValue("value"));
+					Constants.precursorTolerance[0] = Constants.precursorAccuracy[0] = Double.valueOf(param.getAttributeValue("value"));
 				}
 			}
-			
+
 			param = parameters.getChild("fragment_ion_tol");
 			if ( param != null ){
 				Constants.fragmentTolerance = Double.valueOf(param.getAttributeValue("value"));
@@ -242,7 +251,7 @@ public class MODPlus {
 				Constants.maxModifiedMass = Double.valueOf(param.getAttributeValue("max_value"));
 			}
 		}
-		
+
 		Element protocol = search.getChild("protocol");
 		if ( protocol != null ){
 			System.out.print("Protocol Description: ");
@@ -266,91 +275,141 @@ public class MODPlus {
 			}
 			System.out.println();
 		}
-		
+
 		Element modifications = search.getChild("modifications");
-		Constants.variableModifications  = new PTMDB();
-		Constants.fixedModifications  = new PTMDB();
+		for(int i=0; i<ThreadPoolManager.MAX_THREAD; i++){
+			Constants.variableModifications[i] = new PTMDB();
+			Constants.fixedModifications[i] = new PTMDB();
+		}
 
 		if ( modifications != null ){
 			double[] fixedAA = new double[26];
-			
+
 			Element fixed = modifications.getChild("fixed");
 			if ( fixed != null ){
-				if( Constants.fixedModifications.setFixedModificatinos( fixed, fixedAA ) == 0 ){
-					System.out.println( message[2] );
-					return 2;
+				for(int i=0; i<ThreadPoolManager.MAX_THREAD; i++) {
+					if( Constants.fixedModifications[i].setFixedModificatinos( fixed, fixedAA ) == 0 ){
+						System.out.println( message[2] );
+						return 2;
+					}
 				}
 			}
-			if( Constants.fixedModifications.size() > 0 )
-				System.out.println("Fixed modifications : "+Constants.fixedModifications.size()+" selected");
-			
+			if( Constants.fixedModifications[0].size() > 0 )
+				System.out.println("Fixed modifications : "+Constants.fixedModifications[0].size()+" selected");
+
 			Element variable = modifications.getChild("variable");
 			if ( variable != null ){
 				Constants.PTM_FILE_NAME = variable.getAttributeValue("local_path");
 				boolean canBeModifiedOnFixedAA = ( variable.getAttributeValue("canBeModifiedOnFixedAA").equals("1") )? true : false;
 				Constants.canBeModifiedOnFixedAA = canBeModifiedOnFixedAA;
-				if( Constants.PTM_FILE_NAME != null ){
-					Constants.variableModifications.setVariableModificatinos( Constants.PTM_FILE_NAME, fixedAA, canBeModifiedOnFixedAA );
-				}					
-				Constants.variableModifications.setVariableModificatinos( variable, fixedAA, canBeModifiedOnFixedAA );
-				
+
+				for(int i=0; i<ThreadPoolManager.MAX_THREAD; i++){
+					if( Constants.PTM_FILE_NAME != null ){
+						Constants.variableModifications[i].setVariableModificatinos( Constants.PTM_FILE_NAME, fixedAA, canBeModifiedOnFixedAA );
+					}
+					Constants.variableModifications[i].setVariableModificatinos( variable, fixedAA, canBeModifiedOnFixedAA );
+
+				}
+
 				if( canBeModifiedOnFixedAA ){
-					for(PTM p : Constants.fixedModifications ){
-						Constants.variableModifications.add(
-							new PTM(Constants.variableModifications.size(), "De-"+p.getName(), "", 
-									-p.getMassDifference(), 0, p.getResidue(), p.getPTMPosition(), (p.getAbbAA() == 'C')? 1 : 0 ) );
-					}			
+					for(int i=0; i<ThreadPoolManager.MAX_THREAD; i++) {
+						for (PTM p : Constants.fixedModifications[i]) {
+							Constants.variableModifications[i].add(
+									new PTM(Constants.variableModifications[i].size(),
+											"De-" + p.getName(), "",
+											-p.getMassDifference(), 0, p.getResidue(),
+											p.getPTMPosition(), (p.getAbbAA() == 'C') ? 1 : 0));
+						}
+					}
 				}
 				if( variable.getAttributeValue("multi_mods") != null && variable.getAttributeValue("multi_mods").equals("0") ){
 					Constants.maxPTMPerGap = Constants.maxPTMPerPeptide = 1;
 				}
 			}
-			if( Constants.variableModifications.size() > 0 ){				
-				System.out.print("Variable modifications : "+Constants.variableModifications.size()+" selected (");
-				Constants.variableModifications.setPTMDiagnosticIon();
-				if( Constants.maxPTMPerPeptide == 1 ) System.out.println("one modification per peptide)");
-				else System.out.println("multiple modifications per peptide)");
+			for(int i=0; i<ThreadPoolManager.MAX_THREAD; i++) {
+				if( Constants.variableModifications[i].size() > 0 ){
+					System.out.print("Variable modifications : "+Constants.variableModifications[i].size()+" selected (");
+					Constants.variableModifications[i].setPTMDiagnosticIon();
+					if( Constants.maxPTMPerPeptide == 1 )
+						System.out.println("one modification per peptide)");
+					else
+						System.out.println("multiple modifications per peptide)");
+				}
 			}
+
 		}
-		Constants.variableModifications.constructPTMLookupTable();
-		
+		for(int i=0; i<ThreadPoolManager.MAX_THREAD; i++) {
+			Constants.variableModifications[i].constructPTMLookupTable();
+		}
+
 		Element decoy_search = search.getChild("decoy_search");
-		if ( decoy_search != null ){						
-			if( decoy_search.getAttributeValue("checked") != null ){	
+		if ( decoy_search != null ){
+			if( decoy_search.getAttributeValue("checked") != null ){
 				if( "1".compareTo(decoy_search.getAttributeValue("checked")) == 0 ){
 					Constants.targetDecoy = 1;
-					System.out.println("Decoy search checked");	
+					System.out.println("Decoy search checked");
 				}
 			}
 		}
-		
+
 		Element multistages_search = search.getChild("multistages_search");
-		if ( multistages_search != null ){						
-			if( multistages_search.getAttributeValue("checked") != null ){	
+		if ( multistages_search != null ){
+			if( multistages_search.getAttributeValue("checked") != null ){
 				if( "1".compareTo(multistages_search.getAttributeValue("checked")) == 0 ){
 					Constants.multiStagesSearch = 1;
 					Constants.firstSearchProgram = multistages_search.getAttributeValue("program");
-					System.out.println("MultiStages Search checked " + Constants.firstSearchProgram );	
+					System.out.println("MultiStages Search checked " + Constants.firstSearchProgram );
 				}
 			}
 		}
-		
+
 		Element mod_map = search.getChild("mod_map");
 		if ( mod_map != null ) {
-			if( mod_map.getAttributeValue("checked") != null ){		
+			if( mod_map.getAttributeValue("checked") != null ){
 				if( "1".compareTo(mod_map.getAttributeValue("checked")) == 0 ){
-					Constants.runMODmap = 1;	
+					Constants.runMODmap = 1;
 					System.out.println("MODMap checked");
 				}
 			}
 		}
-		
+
 		Constants.adjustParameters();
 
-		System.out.println();
+		System.out.println("----------param slot 0------------");
+		printConstantsState(0); // SLOT_INDEX가 1일 경우
+		System.out.println("----------param slot 1------------");
+		printConstantsState(1); // SLOT_INDEX가 1일 경우
+		System.out.println("set param ends--");
+
 		return 0;
 	}
-	
+
+	public static void printConstantsState(int slot) {
+		System.out.println("======= Constants 상태 (slot = " + slot + ") =======");
+
+		System.out.println("precursorTolerance        = " + Constants.precursorTolerance[slot]);
+		System.out.println("precursorAccuracy         = " + Constants.precursorAccuracy[slot]);
+		System.out.println("gapTolerance              = " + Constants.gapTolerance[slot]);
+		System.out.println("gapAccuracy               = " + Constants.gapAccuracy[slot]);
+		System.out.println("nonModifiedDelta          = " + Constants.nonModifiedDelta[slot]);
+		System.out.println("maxNoOfC13                = " + Constants.maxNoOfC13[slot]);
+
+		System.out.println("minModifiedMass           = " + Constants.minModifiedMass);
+		System.out.println("maxModifiedMass           = " + Constants.maxModifiedMass);
+		System.out.println("fragmentTolerance         = " + Constants.fragmentTolerance);
+		System.out.println("PPMTolerance              = " + Constants.PPMTolerance);
+		System.out.println("rangeForIsotopeIncrement  = " + Constants.rangeForIsotopeIncrement);
+
+		System.out.println("variableModifications.size = " + Constants.variableModifications[slot].size());
+		System.out.println("fixedModifications.size    = " + Constants.fixedModifications[slot].size());
+
+		System.out.println("canBeModifiedOnFixedAA     = " + Constants.canBeModifiedOnFixedAA);
+		System.out.println("maxPTMPerGap               = " + Constants.maxPTMPerGap);
+		System.out.println("maxPTMPerPeptide           = " + Constants.maxPTMPerPeptide);
+		System.out.println("===================================================");
+	}
+
+
 	static int modplus_mod_search() throws Exception{
 		System.out.println("Starting MODPlus for modification search!");
 		
@@ -382,17 +441,18 @@ public class MODPlus {
 				
 		long startTime= System.currentTimeMillis();		
 		PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(identifier+".modplus.txt")));
-		
-		boolean considerIsotopeErr = ( Constants.maxNoOfC13 !=0 || Constants.precursorTolerance > 0.50001 )? true : false;		
+
 
 		int index = 1;
 		int iterSize= scaniter.size();
 
 		// 병렬처리의 핵심 부분
 		while( scaniter.hasNext() ){
-			
+
 			ArrayList<MSMScan> chargedSpectra = scaniter.getNext();
-			System.out.println("MODPlus | " + (index++) + "/" + iterSize);			
+			System.out.println("MODPlus | " + (index++) + "/" + iterSize);
+			int slot = ThreadPoolManager.getSlotIndex();
+			printConstantsState(slot);
 
 			int selected = -1;
 			ArrayList<AnsPeptide> candidates = null;
@@ -404,7 +464,9 @@ public class MODPlus {
 				PGraph graph = spectrum.getPeakGraph();	
 				spectrum.setCorrectedParentMW( graph.correctMW( dynamicPMCorrection ) );
 				TagPool tPool = SpectrumAnalyzer.buildTagPool( spectrum );
-				
+
+
+				boolean considerIsotopeErr = ( Constants.maxNoOfC13[slot] !=0 || Constants.precursorTolerance[slot] > 0.50001 )? true : false;
 				DPHeap heatedPepts = OneMOD.getHeatedPeptides( ixPDB, graph, tPool, considerIsotopeErr );
 				DPHeap tepidPepts  = null;
 				if( Constants.maxPTMPerPeptide > 1 )
@@ -445,6 +507,9 @@ public class MODPlus {
 				}
 				out.println();	
 			}
+
+			printConstantsState(slot);
+
 		}
 		out.close();
 		
@@ -489,7 +554,8 @@ public class MODPlus {
 		
 		boolean specAnnotated = false;
 		if( tcPool.size() != 0 ){
-			specAnnotated = SpectrumAnalyzer.interpretTagChain( Constants.variableModifications, tcPool, graph );
+			int slot = ThreadPoolManager.getSlotIndex();
+			specAnnotated = SpectrumAnalyzer.interpretTagChain( Constants.variableModifications[slot], tcPool, graph );
 		}
 		
 		ArrayList<AnsPeptide> cands = new ArrayList<AnsPeptide>();		

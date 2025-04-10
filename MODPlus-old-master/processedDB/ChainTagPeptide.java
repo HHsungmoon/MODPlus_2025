@@ -4,17 +4,23 @@ import java.util.ArrayList;
 import java.util.Collections;
 
 import modi.Constants;
+import modi.ThreadPoolManager;
 
 public class ChainTagPeptide extends MODPeptide {
-	
-	private static double	a = ( Constants.maxModifiedMass < 0 )?  Constants.gapTolerance : Constants.maxModifiedMass+Constants.gapTolerance; 
-	private static double	b = ( Constants.minModifiedMass > 0 )? -Constants.gapTolerance : Constants.minModifiedMass-Constants.gapTolerance; 
-	private static double	shiftWindow = (a - b);
+
+
+	private double a;
+	private double b;
+	private double shiftWindow;
 	
 	ArrayList<SequenceTag> mTags;
 
 	public ChainTagPeptide(int s, int e, SequenceTag tag){
 		super(s, e);
+		int slot = ThreadPoolManager.getSlotIndex();
+		a = ( Constants.maxModifiedMass < 0 )?  Constants.gapTolerance[slot] : Constants.maxModifiedMass+Constants.gapTolerance[slot];
+		b = ( Constants.minModifiedMass > 0 )? -Constants.gapTolerance[slot] : Constants.minModifiedMass-Constants.gapTolerance[slot];
+		shiftWindow = (a - b);
 		mTags = new ArrayList<SequenceTag>();
 		mTags.add(tag);
 	}

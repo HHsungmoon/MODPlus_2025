@@ -119,13 +119,12 @@ public class PTMDB extends ArrayList<PTM> {
 
 	// Finding PTMs by Exhaustive Depth-first-search
 	private void findPTM_DFS( double mass, int pos, int cnt, int extra )
-	{	
-		// when search has reached the leaf node(end of sequence), check result
+	{
 		if ( pos == seq.size() ) {			
 			double ierror = Math.abs( mass - massDiff );
-		//	System.out.println(Constants.gapTolerance);
-		//	if ( ierror <= Constants.gapTolerance ) 
-			if ( ierror <= Constants.gapTolerance && Constants.isWithinAccuracy(ierror) ) 
+
+			int slot = ThreadPoolManager.getSlotIndex();
+			if ( ierror <= Constants.gapTolerance[slot] && Constants.isWithinAccuracy(ierror) )
 			{
 				PTMRun run = new PTMRun();
 				for (int i=0; i<seq.size(); i++)
@@ -183,12 +182,14 @@ public class PTMDB extends ArrayList<PTM> {
 		ArrayList<PTMRun> newGapInterpret = new ArrayList<PTMRun>();
 	
 		double ierror = Math.abs( massDiff );
-		if( ierror < Constants.nonModifiedDelta ){
+
+		int slot = ThreadPoolManager.getSlotIndex();
+		if( ierror < Constants.nonModifiedDelta[slot] ){
 			searchResult = new PTMSearchResult( newGapInterpret, true );			
 			return searchResult;
 		}
 		
-		if( ierror < Constants.gapTolerance ){
+		if( ierror < Constants.gapTolerance[slot] ){
 			PTMRun run = new PTMRun();
 			run.setError(ierror);
 			newGapInterpret.add( run );			
@@ -591,7 +592,7 @@ public class PTMDB extends ArrayList<PTM> {
 			}
 		}
 	}
-	
+
 }
 
 

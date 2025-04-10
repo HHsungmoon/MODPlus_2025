@@ -75,7 +75,8 @@ public class Spectrum extends ArrayList<Peak> implements Comparable<Spectrum> {
 		
 		int binSize= 100, considered= 10;
 		double minimumCut= bpIntensity*0.001;
-		double precursoeRange= Constants.precursorTolerance/this.charge + Constants.fragmentTolerance;
+		int slot = ThreadPoolManager.getSlotIndex();
+		double precursoeRange= Constants.precursorTolerance[slot]/this.charge + Constants.fragmentTolerance;
 		
 		PGraph graph = new PGraph(this.observedMW, charge);
 		
