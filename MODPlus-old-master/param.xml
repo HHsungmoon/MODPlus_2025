@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<search user="Seungjin" title="BeetleGut" >
+
+	<dataset local_path="E:\Study_file\git_hub_upload\한양대학교 졸업 프로젝트\test_simple.mgf" format="mgf" instrument="QTOF" />
+	<!-- format=[mgf|pkl|dta|ms2|mzxml], instrument=[QTOF|TRAP] -->
+	<database local_path="E:\Study_file\git_hub_upload\한양대학교 졸업 프로젝트\test.fasta" />
+
+	<combined_enzyme name="Trypsin" nterm_cleave="" cterm_cleave="KR" />
+
+	<instrument_resolution ms="high" msms="high" /> <!-- [high|low] -->
+	
+	<parameters>
+		<enzyme_constraint max_miss_cleavages="2" min_number_termini="1" />	
+		<isotope_error min_C13_number="-1" max_C13_number="2" />
+		
+		<peptide_mass_tol value="20" unit="ppm" /> <!-- unit=[da|ppm] -->
+		<fragment_ion_tol value="0.05" unit="da" /> <!-- unit=[da] (NOT ALLOWED PPM) -->		
+		
+		<modified_mass_range min_value="-300" max_value="300" />
+	</parameters>
+	
+	<protocol>
+		<!-- supporting 4 isobaric tags: itraq4plex, itraq8plex, tmt2plex, tmt6plex -->
+		<isobaric_labeling reagent="" />
+		<!-- supporting 2 mods: acetyl, phospho. should be extended -->
+		<modification_enrichment mod="" />
+	</protocol>
+	
+	<modifications>
+		<!-- for mod, site=[AA|N-term|C-term], position=[ANYWHERE|ANY_N(C)_TERM|PROTEIN_N(C)_TERM] -->
+		<fixed>	<!-- for fix mod, NOT ALLOWED a combination of site="AA" and position="ANY_N_TERM" -->
+			<!--mod name="Carbamidomethyl" site="C" position="ANYWHERE" massdiff="57.021464" /-->
+			<!--iTRAQ-->
+			<!--mod name="iTRAQ" site="K" position="ANYWHERE" massdiff="144.102063" />	
+			<mod name="iTRAQ" site="N-term" position="ANY_N_TERM" massdiff="144.102063" /-->
+		</fixed>
+		<variable canBeModifiedOnFixedAA="0" multi_mods="1">		
+			<!-- canBeModifiedOnFixedAA=[0|1], multi_mods=[0|1](If 0, consider only single-mod) -->
+			<mod name="Oxidation" 		site="M" position="ANYWHERE" massdiff="15.994915" />
+			<mod name="Dethiomethyl" 	site="M" position="ANYWHERE" massdiff="-48.003371" />
+			<mod name="Oxidation" 		site="P" position="ANYWHERE" massdiff="15.994915" />
+			<mod name="Oxidation" 		site="W" position="ANYWHERE" massdiff="15.994915" />
+			<mod name="Dioxidation" 	site="M" position="ANYWHERE" massdiff="31.989829" />
+			<mod name="Dioxidation" 	site="W" position="ANYWHERE" massdiff="31.989829" />
+			<mod name="Trp->Kynurenin" 	site="W" position="ANYWHERE" massdiff="3.994915" />
+			<mod name="Carboxy" 		site="W" position="ANYWHERE" massdiff="43.989829" />
+			<mod name="Deamidated" 		site="N" position="ANYWHERE" massdiff="0.984016" />
+			<mod name="Deamidated" 		site="Q" position="ANYWHERE" massdiff="0.984016" />
+			
+			<mod name="Carbamyl" 		site="N-term" position="ANY_N_TERM" massdiff="43.005814" />	
+			
+			<mod name="Carbon" site="N-term" position="ANY_N_TERM" massdiff="12.00" />					
+			<mod name="Carbon" site="W" position="ANYWHERE" massdiff="12" />
+				
+			<mod name="Dehydrated" site="D" position="ANYWHERE" massdiff="-18.010565" />
+			<mod name="Dehydrated" site="S" position="ANYWHERE" massdiff="-18.010565" />
+			<mod name="Dehydrated" site="T" position="ANYWHERE" massdiff="-18.010565" />		
+			<mod name="Ammonia-loss" site="N" position="ANYWHERE" massdiff="-17.026549" />
+
+			<mod name="Glu->pyro-Glu" site="E" position="ANY_N_TERM" massdiff="-18.010565" />			
+			<mod name="Gln->pyro-Glu" site="Q" position="ANY_N_TERM" massdiff="-17.026549" />
+			
+			<mod name="Formyl" site="S" position="ANYWHERE" massdiff="27.994915" />
+			<mod name="Formyl" site="T" position="ANYWHERE" massdiff="27.994915" />
+			<mod name="Formyl" site="N-term" position="ANY_N_TERM" massdiff="27.994915" />
+			
+			<mod name="Phospho" site="S" position="ANYWHERE" massdiff="79.966331" />
+			<mod name="Phospho" site="T" position="ANYWHERE" massdiff="79.966331" />
+			<mod name="Phospho" site="Y" position="ANYWHERE" massdiff="79.966331" />
+			
+			<mod name="Acetyl" site="K" position="ANYWHERE" massdiff="42.010565" />		
+			<mod name="Acetyl" site="N-term" position="PROTEIN_N_TERM" massdiff="42.010565" />		
+			<mod name="Acetyl+O" site="M" position="PROTEIN_N_TERM" massdiff="58.005479" />
+			
+			<mod name="Methyl" site="K" position="ANYWHERE" massdiff="14.015650" />
+			<mod name="Methyl" site="R" position="ANYWHERE" massdiff="14.015650" />		
+			<mod name="Methyl" site="H" position="ANYWHERE" massdiff="14.015650" />		
+			<mod name="Methyl" site="D" position="ANYWHERE" massdiff="14.015650" />		
+			<mod name="Methyl" site="E" position="ANYWHERE" massdiff="14.015650" />		
+			
+			<mod name="Dimethyl" site="K" position="ANYWHERE" massdiff="28.031300" />
+			<mod name="Dimethyl" site="R" position="ANYWHERE" massdiff="28.031300" />		
+			
+			<mod name="Cation:Na" site="D" position="ANYWHERE" massdiff="21.981943" />
+			<mod name="Cation:Na" site="E" position="ANYWHERE" massdiff="21.981943" />
+
+			<mod name="Dioxidation" site="C" position="ANYWHERE" massdiff="31.989829" />
+			<mod name="Trioxidation" site="C" position="ANYWHERE" massdiff="47.984744" />
+			<mod name="Dehydroalanine" site="C" position="ANYWHERE" massdiff="-33.987721" />
+
+		</variable>
+	</modifications>
+	
+</search>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
