@@ -8,6 +8,14 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 
+import java.util.List;
+import java.util.Vector;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import moda.ThreadPoolManager;
 import org.jdom.Document;
 import org.jdom.Element;
@@ -310,26 +318,20 @@ public class MODPlus {
 		Element modifications = search.getChild("modifications");
 
 		// PTMDB 슬롯 초기화
-		Constants.variableModifications = new PTMDB[numSlots];
-		Constants.fixedModifications = new PTMDB[numSlots];
-		for (int i = 0; i < numSlots; i++) {
-			// 새로운 PTMDB 객체 생성 (필요시 clone이나 deep copy 적용)
-			Constants.variableModifications[i] = new PTMDB();
-			Constants.fixedModifications[i] = new PTMDB();
-		}
+		PTMDB tempFixed = new PTMDB();
+		PTMDB tempVar = new PTMDB();
 
 		if (modifications != null) {
 			double[] fixedAA = new double[26];
-
 			Element fixed = modifications.getChild("fixed");
 			if (fixed != null) {
-				if (Constants.fixedModifications[0].setFixedModificatinos(fixed, fixedAA) == 0) {
+				if (tempFixed.setFixedModificatinos(fixed, fixedAA) == 0) {
 					System.out.println(message[2]);
 					return 2;
 				}
 			}
-			if (Constants.fixedModifications[0].size() > 0)
-				System.out.println("Fixed modifications : " + Constants.fixedModifications[0].size() + " selected");
+			if (tempFixed.size() > 0)
+				System.out.println("Fixed modifications : " + tempFixed.size() + " selected");
 
 			Element variable = modifications.getChild("variable");
 			if (variable != null) {
@@ -337,31 +339,40 @@ public class MODPlus {
 				boolean canBeModifiedOnFixedAA = variable.getAttributeValue("canBeModifiedOnFixedAA").equals("1");
 				Constants.canBeModifiedOnFixedAA = canBeModifiedOnFixedAA;
 				if (Constants.PTM_FILE_NAME != null) {
-					Constants.variableModifications[0].setVariableModificatinos(Constants.PTM_FILE_NAME, fixedAA, canBeModifiedOnFixedAA);
+					tempVar.setVariableModificatinos(Constants.PTM_FILE_NAME, fixedAA, canBeModifiedOnFixedAA);
 				}
-				Constants.variableModifications[0].setVariableModificatinos(variable, fixedAA, canBeModifiedOnFixedAA);
+				tempVar.setVariableModificatinos(variable, fixedAA, canBeModifiedOnFixedAA);
 
 				if (canBeModifiedOnFixedAA) {
-					for (PTM p : Constants.fixedModifications[0]) {
-						Constants.variableModifications[0].add(
-								new PTM(Constants.variableModifications[0].size(), "De-" + p.getName(), "",
-										-p.getMassDifference(), 0, p.getResidue(), p.getPTMPosition(), (p.getAbbAA() == 'C') ? 1 : 0));
+					for (PTM p : tempFixed) {
+						tempVar.add(new PTM(tempVar.size(), "De-" + p.getName(), "",
+								-p.getMassDifference(), 0, p.getResidue(), p.getPTMPosition(), (p.getAbbAA() == 'C') ? 1 : 0));
 					}
 				}
 				if (variable.getAttributeValue("multi_mods") != null && variable.getAttributeValue("multi_mods").equals("0")) {
 					Constants.maxPTMPerGap = Constants.maxPTMPerPeptide = 1;
 				}
-			}
-			if (Constants.variableModifications[0].size() > 0) {
-				System.out.print("Variable modifications : " + Constants.variableModifications[0].size() + " selected (");
-				Constants.variableModifications[0].setPTMDiagnosticIon();
-				if (Constants.maxPTMPerPeptide == 1)
-					System.out.println("one modification per peptide)");
-				else
-					System.out.println("multiple modifications per peptide)");
+				if (tempVar.size() > 0) {
+					System.out.print("Variable modifications : " + tempVar.size() + " selected (");
+					tempVar.setPTMDiagnosticIon();
+					if (Constants.maxPTMPerPeptide == 1)
+						System.out.println("one modification per peptide)");
+					else
+						System.out.println("multiple modifications per peptide)");
+				}
 			}
 		}
-		Constants.variableModifications[0].constructPTMLookupTable();
+
+		// 모든 슬롯에 대해 PTMDB 객체를 동일한 내용으로 초기화 및 lookup table 구성
+		Constants.fixedModifications = new PTMDB[numSlots];
+		Constants.variableModifications = new PTMDB[numSlots];
+		for (int i = 0; i < numSlots; i++) {
+			// 여기서는 tempFixed와 tempVar가 읽기 전용이라면 동일한 객체를 여러 슬롯에 할당해도 문제가 없으나,
+			// 만약 각 슬롯에서 수정이 일어난다면 deep copy 또는 clone 구현이 필요합니다.
+			Constants.fixedModifications[i] = tempFixed;
+			Constants.variableModifications[i] = tempVar;
+			Constants.variableModifications[i].constructPTMLookupTable();
+		}
 
 		Element decoy_search = search.getChild("decoy_search");
 		if (decoy_search != null) {
@@ -424,130 +435,148 @@ public class MODPlus {
 		System.out.println("===================================================");
 	}
 
-	static int modplus_mod_search() throws Exception{
+	static int modplus_mod_search() throws Exception {
 		System.out.println("Starting MODPlus for modification search!");
-		
+
 		Constants.MAX_TAG_SIZE = 100;
 		Constants.minTagLength = 2;
-
 		Constants.minTagLengthPeptideShouldContain = 3;
 		Constants.tagChainPruningRate = 0.4;
-		
+
 		String identifier = Constants.SPECTRUM_LOCAL_PATH;
 		identifier = identifier.substring(0, identifier.lastIndexOf('.'));
-		
-		// SpectrumContainer generation
-		ScanIterator scaniter = ScanIterator.get( Constants.SPECTRUM_LOCAL_PATH, Constants.SPECTRA_FILE_TYPE );
-		if( scaniter == null || scaniter.size() == 0 ){
-			System.out.println("Failed to read msms spectra file" );
+
+		// 1. SpectrumContainer 생성
+		ScanIterator scaniter = ScanIterator.get(Constants.SPECTRUM_LOCAL_PATH, Constants.SPECTRA_FILE_TYPE);
+		if (scaniter == null || scaniter.size() == 0) {
+			System.out.println("Failed to read msms spectra file");
 			return 1;
 		}
-		System.out.println( scaniter.size() + " scans"  );		
-		
-		// Protein DB generation
-		System.out.print( "Reading protein database.....  " );		
-		StemTagTrie ixPDB= new StemTagTrie( Constants.PROTEIN_DB_LOCAL_PATH );
-		if( ixPDB.getSizeOfEntries() == 0 ){
-			System.out.println( "Failed to read protein fasta file" );
+		System.out.println(scaniter.size() + " scans");
+
+		// 2. Protein DB 생성
+		System.out.print("Reading protein database.....  ");
+		StemTagTrie ixPDB = new StemTagTrie(Constants.PROTEIN_DB_LOCAL_PATH);
+		if (ixPDB.getSizeOfEntries() == 0) {
+			System.out.println("Failed to read protein fasta file");
 			return 1;
 		}
 		System.out.println();
-				
-		long startTime= System.currentTimeMillis();		
-		PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(identifier+".modplus.txt")));
 
-		boolean[] considerIsotopeErr = new boolean[ThreadPoolManager.numSlots];
-		for(int i=0; i<ThreadPoolManager.numSlots; i++) {
-			considerIsotopeErr[i] =
-					(Constants.maxNoOfC13[i] != 0 || Constants.precursorTolerance[i] > 0.50001)
-							? true : false;
-		}
+		long startTime = System.currentTimeMillis();
 
+		// 3. ExecutorService 생성 (ThreadPoolManager.numSlots 개수 사용 - 예: 4개)
+		int numThreads = ThreadPoolManager.numSlots;
+		ExecutorService executor = Executors.newFixedThreadPool(numThreads);
+		List<Future<String>> futureList = new ArrayList<>();
+
+		// 4. 각 스캔 블록마다 Callable 작업 제출
 		int index = 1;
-		int iterSize= scaniter.size();
-		while( scaniter.hasNext() ){
-			
-			ArrayList<MSMScan> chargedSpectra = scaniter.getNext();
-			System.out.println("MODPlus | " + (index++) + "/" + iterSize);
+		int iterSize = scaniter.size();
+		while (scaniter.hasNext()) {
+			final ArrayList<MSMScan> chargedSpectra = scaniter.getNext();
+			final int currentBlock = index++; // 현재 스캔 블록 번호
 
-			//Constants.printAllConstantsState(slot); // 슬롯별 Constants 값 확인
+			Future<String> future = executor.submit(new Callable<String>() {
+				@Override
+				public String call() throws Exception {
+					int slotIdx = ThreadPoolManager.getSlotIndex();
 
-			int selected = -1;
-			ArrayList<AnsPeptide> candidates = null;
+					StringBuilder resultSB = new StringBuilder();
 
-			for(int i=0; i<chargedSpectra.size(); i++){
-				Spectrum spectrum = chargedSpectra.get(i).getSpectrum();
-				System.out.println(" └─ Spectrum Charge " + spectrum.getCharge() + " | ObservedMW: " + spectrum.getObservedMW());
+					// (디버그 로그는 콘솔로만 출력)
+					System.out.println("MODPlus | " + currentBlock + "/" + iterSize);
 
-				if (spectrum.getObservedMW() > Constants.maxPeptideMass) {
-					System.out.println("    → Skipped: Over maxPeptideMass");
-					continue;
-				}
+					int selected = -1;
+					ArrayList<AnsPeptide> candidates = null;
 
-				PGraph graph = spectrum.getPeakGraph();
-				double correctedMW = graph.correctMW(dynamicPMCorrection);
-				spectrum.setCorrectedParentMW(correctedMW);
-				System.out.println("    → Corrected MW: " + correctedMW);
+					for (int i = 0; i < chargedSpectra.size(); i++) {
+						Spectrum spectrum = chargedSpectra.get(i).getSpectrum();
+						//System.out.println(" └─ Spectrum Charge " + spectrum.getCharge() + " | ObservedMW: " + spectrum.getObservedMW());
 
-				TagPool tPool = SpectrumAnalyzer.buildTagPool( spectrum );
+						if (spectrum.getObservedMW() > Constants.maxPeptideMass) {
+							//System.out.println("    → Skipped: Over maxPeptideMass");
+							continue;
+						}
 
-				DPHeap heatedPepts = OneMOD.getHeatedPeptides( ixPDB, graph, tPool, considerIsotopeErr[ThreadPoolManager.getSlotIndex()] );
-				DPHeap tepidPepts  = null;
-				if( Constants.maxPTMPerPeptide > 1 )
-					if( heatedPepts == null || !heatedPepts.isConfident() ) {
-						tepidPepts = heatedPepts;
-						heatedPepts = MultiMOD.getHeatedPeptides( ixPDB, graph, tPool, dynamicPMCorrection );
+						PGraph graph = spectrum.getPeakGraph();
+						double correctedMW = graph.correctMW(dynamicPMCorrection);
+						spectrum.setCorrectedParentMW(correctedMW);
+						//System.out.println("    → Corrected MW: " + correctedMW);
+
+						TagPool tPool = SpectrumAnalyzer.buildTagPool(spectrum);
+						DPHeap heatedPepts = OneMOD.getHeatedPeptides(ixPDB, graph, tPool, /* use slot에 따른 */
+								/* considerIsotopeErr 배열는 set_parameter()에서 이미 초기화되었다고 가정 */
+								/* 여기서는 Constants.maxNoOfC13[slotIdx] 혹은 precursorTolerance[slotIdx] 값 기반의 부울값 사용 */
+								(Constants.maxNoOfC13[slotIdx] != 0 || Constants.precursorTolerance[slotIdx] > 0.50001));
+						DPHeap tepidPepts = null;
+						if (Constants.maxPTMPerPeptide > 1) {
+							if (heatedPepts == null || !heatedPepts.isConfident()) {
+								tepidPepts = heatedPepts;
+								heatedPepts = MultiMOD.getHeatedPeptides(ixPDB, graph, tPool, dynamicPMCorrection);
+							}
+						}
+						if (heatedPepts == null)
+							continue;
+
+						HeatedDB bitDB = getHeatedDB(ixPDB, heatedPepts, tepidPepts);
+						TagTrie bitTrie = bitDB.getPartialDB(ixPDB);
+						//System.out.println("bitTrie의 전체 태그 개수 = " + bitTrie.getTotalTagCount());
+						//System.out.println("bitTrie에서 TAG 'A-R-G'의 등장 수 = " + bitTrie.getTagHitCount('A','R','G'));
+
+						ArrayList<AnsPeptide> tp = dynamicMODeye(bitTrie, graph, tPool);
+						//System.out.println("    → dynamicMODeye results: " + tp.size() + " candidate(s)");
+
+						if (tp.size() > 0) { // 후보 결정
+							if (candidates == null || candidates.get(0).compareTo(tp.get(0)) == 1) {
+								candidates = tp;
+								selected = i;
+								//System.out.println("    → Selected candidate updated");
+							}
+						}
 					}
 
-				if( heatedPepts == null ) continue;
+					// 최종적으로 결과 문자열에 ">>"로 시작하는 레코드만 추가합니다.
+					if (selected != -1) {
+						MSMScan scan = chargedSpectra.get(selected);
+						HashMap<String, ArrayList<PeptideMatchToProtein>> seqToProtMap = new HashMap<>();
+						// 결과 문자열에 단 한 줄의 헤더를 추가 (>>...)
+						resultSB.append(">>").append(scaniter.getFileName()).append("\t").append(scan.getHeader()).append("\n");
 
-				HeatedDB bitDB = getHeatedDB(ixPDB, heatedPepts, tepidPepts);
-				TagTrie bitTrie = bitDB.getPartialDB(ixPDB);
-				System.out.println("bitTrie의 전체 태그 개수 = " + bitTrie.getTotalTagCount());
-				System.out.println("bitTrie에서 TAG 'A-R-G'의 등장 수 = " + bitTrie.getTagHitCount('A', 'R', 'G'));
-
-
-				ArrayList<AnsPeptide> tp = dynamicMODeye(bitTrie, graph, tPool);
-				System.out.println("    → dynamicMODeye results: " + tp.size() + " candidate(s)");
-
-				if( tp.size() > 0 ) { //decision Of CS
-					if( candidates == null || candidates.get(0).compareTo( tp.get(0) ) == 1 ) {
-						candidates = tp;
-						selected = i;
-						System.out.println("    → Selected candidate updated");
+						for (int k = 0; k < candidates.size(); k++) {
+							String tpSeq = candidates.get(k).getPeptideSequence();
+							ArrayList<PeptideMatchToProtein> matchedProteins = seqToProtMap.get(tpSeq);
+							if (matchedProteins == null) {
+								matchedProteins = ixPDB.getMatchProteins(tpSeq);
+								seqToProtMap.put(tpSeq, matchedProteins);
+							}
+							resultSB.append(candidates.get(k).toMODPlus(scan.getObservedMW(), matchedProteins)).append("\n");
+						}
+						resultSB.append("\n");
 					}
+					return resultSB.toString();
 				}
-			}
-			
-			if( selected != -1 ) {
-				MSMScan scan = chargedSpectra.get(selected);
-				
-				HashMap<String, ArrayList<PeptideMatchToProtein>> seqToProtMap = new HashMap<String, ArrayList<PeptideMatchToProtein>>();
-				out.println( ">>"+scaniter.getFileName()+"\t"+scan.getHeader() );
-
-				for( int k=0; k<candidates.size(); k++ ){
-					String tpSeq = candidates.get(k).getPeptideSequence();
-					ArrayList<PeptideMatchToProtein> matchedProteins = seqToProtMap.get(tpSeq);
-										
-					if( matchedProteins == null ){
-						matchedProteins = ixPDB.getMatchProteins(tpSeq);
-						seqToProtMap.put(tpSeq, matchedProteins);
-					}				
-					out.println( candidates.get(k).toMODPlus(scan.getObservedMW(), matchedProteins) );	
-				}
-				out.println();	
-			}
-
-			System.out.println("----------------------");
-			//Constants.printAllConstantsState(1);
-
+			});
+			futureList.add(future);
 		}
-		out.close();
-		
-		System.out.println("[MOD-Plus] Elapsed Time : " + (System.currentTimeMillis()-startTime)/1000 + " Sec" );
+
+		executor.shutdown();
+		executor.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+
+		// 최종적으로 모든 Future에서 리턴된 결과 문자열만 파일에 기록
+		StringBuilder finalOutput = new StringBuilder();
+		for (Future<String> f : futureList) {
+			finalOutput.append(f.get());
+		}
+		try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(identifier + ".modplus.txt")))) {
+			out.print(finalOutput.toString());
+		}
+
+		System.out.println("[MOD-Plus] Elapsed Time : " + (System.currentTimeMillis() - startTime) / 1000 + " Sec");
 		return 0;
 	}
-	
+
+
 	private static HeatedDB getHeatedDB( StemTagTrie stemDB, DPHeap candidates, DPHeap tepids ) {
 		
 		HeatedDB matchedBits= new HeatedDB();
@@ -578,25 +607,25 @@ public class MODPlus {
 	private static ArrayList<AnsPeptide> dynamicMODeye(TagTrie dynamicDB, PGraph graph, TagPool tPool) throws Exception {
 		double parentMW = graph.getCorrectedMW();
 
-		System.out.printf("    → Corrected MW: %.9f%n", parentMW);
+		//System.out.printf("    → Corrected MW: %.9f%n", parentMW);
 
 		MatchedTagPool matchedList = SpectrumAnalyzer.extendedBuildMatchedTagPool(
 				tPool, parentMW, dynamicDB, Constants.protease, Constants.numberOfEnzymaticTermini);
 
-		System.out.println("matchedList size: " + matchedList.size());
+		//System.out.println("matchedList size: " + matchedList.size());
 
 		TagChainPool tcPool = new TagChainPool();
 		tcPool.putAll(SpectrumAnalyzer.buildTagChain(matchedList));
-		System.out.println("TC Pool Size Before discard: " + tcPool.size());
+		//System.out.println("TC Pool Size Before discard: " + tcPool.size());
 
 		tcPool.discardPoorTagChain();
-		System.out.println("TC Pool Size After discard: " + tcPool.size());
+		//System.out.println("TC Pool Size After discard: " + tcPool.size());
 
 		boolean specAnnotated = false;
 		if (tcPool.size() > 0) {
-			System.out.println("Calling interpretTagChain()...");
+			//System.out.println("Calling interpretTagChain()...");
 			specAnnotated = SpectrumAnalyzer.interpretTagChain( Constants.variableModifications[ThreadPoolManager.getSlotIndex()], tcPool, graph );
-			System.out.println("interpretTagChain() result: " + specAnnotated);
+			//System.out.println("interpretTagChain() result: " + specAnnotated);
 		}
 
 		ArrayList<AnsPeptide> cands = new ArrayList<>();
@@ -604,10 +633,8 @@ public class MODPlus {
 			cands = tcPool.getAnswerPeptides(graph);
 		}
 
-		System.out.println("TC Pool Size After : " + tcPool.size());
-		System.out.println("PTM Combination 개수: " + cands.size());
-
-		// 상세 TagChain 내부 내용 출력 (상위 몇 개만 보기)
+		//System.out.println("TC Pool Size After : " + tcPool.size());
+		//System.out.println("PTM Combination 개수: " + cands.size());
 
 
 		return cands;
