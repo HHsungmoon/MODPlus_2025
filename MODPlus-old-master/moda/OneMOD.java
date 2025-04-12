@@ -1,6 +1,5 @@
 package moda;
 
-import modi.ThreadPoolManager;
 import processedDB.CandidateContainer;
 import processedDB.MODPeptide;
 import processedDB.StemTagTrie;
@@ -103,8 +102,9 @@ public class OneMOD {
 				if( noOfET >= Constants.numberOfEnzymaticTermini )
 				{
 					double massRange = delta + nTermDeletion + cTermDeletion;
-					int slot = ThreadPoolManager.getSlotIndex();
-					if( (massRange < Constants.maxModifiedMass && massRange > Constants.minModifiedMass) || Math.abs(massRange) < Constants.precursorTolerance[slot] )
+					int slotIdx = ThreadPoolManager.getSlotIndex();
+					if( (massRange < Constants.maxModifiedMass && massRange > Constants.minModifiedMass) ||
+							Math.abs(massRange) < Constants.precursorTolerance[slotIdx] )
 					{						
 						double ptm = MODaConst.ptmUnit.getPtmMass(massRange);
 						int intptm = Constants.round(massRange);
@@ -170,9 +170,9 @@ public class OneMOD {
 				if( noOfET >= Constants.numberOfEnzymaticTermini )
 				{
 					double massRange = delta + nTermDeletion + cTermDeletion;
-					int slot = ThreadPoolManager.getSlotIndex();
+					int slotIdx = ThreadPoolManager.getSlotIndex();
 					if( (massRange < Constants.maxModifiedMass && massRange > Constants.minModifiedMass) ||
-							Math.abs(massRange) < Constants.precursorTolerance[slot] )
+							Math.abs(massRange) < Constants.precursorTolerance[slotIdx] )
 					{
 						double ptm = MODaConst.ptmUnit.getPtmMass(massRange);
 						int intptm = Constants.round(massRange);

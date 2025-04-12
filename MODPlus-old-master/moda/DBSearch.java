@@ -7,7 +7,6 @@ import modi.Constants;
 import modi.PeakProperty;
 import modi.Tag;
 import modi.TagPool;
-import modi.ThreadPoolManager;
 import processedDB.CandidateContainer;
 import processedDB.MODPeptide;
 import processedDB.TagPeptide;
@@ -19,10 +18,9 @@ public class DBSearch {
 		
 		if( primitiveTags == null || ixPDB == null )
 			return null;
-
-		int slot = ThreadPoolManager.getSlotIndex();
-		double minDelta = (Constants.minModifiedMass < 0)? Constants.minModifiedMass - Constants.gapTolerance[slot] : - Constants.gapTolerance[slot];
-		double maxDelta = (Constants.maxModifiedMass > 0)? Constants.maxModifiedMass + Constants.gapTolerance[slot] : + Constants.gapTolerance[slot];
+		int slotIdx = ThreadPoolManager.getSlotIndex();
+		double minDelta = (Constants.minModifiedMass < 0)? Constants.minModifiedMass - Constants.gapTolerance[slotIdx] : - Constants.gapTolerance[slotIdx];
+		double maxDelta = (Constants.maxModifiedMass > 0)? Constants.maxModifiedMass + Constants.gapTolerance[slotIdx] : + Constants.gapTolerance[slotIdx];
 		
 		TagPool longTags = primitiveTags.extractAbove(Constants.minTagLengthPeptideShouldContain);
 		
@@ -34,7 +32,7 @@ public class DBSearch {
 					tag.get(3).getPeakProperty() != PeakProperty.N_TERM_Y_ION_ONLY )
 			{
 				LinkedList<MODPeptide> bRes= ixPDB.getOneModPeptides(tag.getBIonNtermOffset()-Constants.NTERM_FIX_MOD, tag.sequence().toString(),
-						tag.getBIonCtermOffset()-Constants.CTERM_FIX_MOD, 0, minDelta, maxDelta, Constants.gapTolerance[slot]);
+						tag.getBIonCtermOffset()-Constants.CTERM_FIX_MOD, 0, minDelta, maxDelta, Constants.gapTolerance[slotIdx]);
 				cpool.addAll(bRes);
 			}
 			if( tag.get(0).getPeakProperty() != PeakProperty.N_TERM_B_ION_ONLY && 
@@ -42,7 +40,7 @@ public class DBSearch {
 			{
 				Tag reverseTag= tag.reverseTag();
 				LinkedList<MODPeptide> yRes= ixPDB.getOneModPeptides(reverseTag.getYIonNtermOffset()-Constants.NTERM_FIX_MOD, reverseTag.sequence().toString(),
-						reverseTag.getYIonCtermOffset()-Constants.CTERM_FIX_MOD, 1, minDelta, maxDelta, Constants.gapTolerance[slot]);
+						reverseTag.getYIonCtermOffset()-Constants.CTERM_FIX_MOD, 1, minDelta, maxDelta, Constants.gapTolerance[slotIdx]);
 				cpool.addAll(yRes);
 			}
 			realTag++;
@@ -61,9 +59,9 @@ public class DBSearch {
 		if( primitiveTags == null || ixPDB == null )
 			return null;
 
-		int slot = ThreadPoolManager.getSlotIndex();
-		double minDelta = (Constants.minModifiedMass < 0)? Constants.minModifiedMass - Constants.gapTolerance[slot] : - Constants.gapTolerance[slot];
-		double maxDelta = (Constants.maxModifiedMass > 0)? Constants.maxModifiedMass + Constants.gapTolerance[slot] : + Constants.gapTolerance[slot];
+		int slotIdx = ThreadPoolManager.getSlotIndex();
+		double minDelta = (Constants.minModifiedMass < 0)? Constants.minModifiedMass - Constants.gapTolerance[slotIdx] : - Constants.gapTolerance[slotIdx];
+		double maxDelta = (Constants.maxModifiedMass > 0)? Constants.maxModifiedMass + Constants.gapTolerance[slotIdx] : + Constants.gapTolerance[slotIdx];
 		
 		TagPool longTags = primitiveTags.extractAbove(Constants.minTagLengthPeptideShouldContain);
 
@@ -74,7 +72,7 @@ public class DBSearch {
 					tag.get(3).getPeakProperty() != PeakProperty.N_TERM_Y_ION_ONLY )
 			{
 				LinkedList<TagPeptide> bRes= ixPDB.getMultiModPeptides(tag.getBIonNtermOffset()-Constants.NTERM_FIX_MOD, tag.sequence().toString(),
-						tag.getBIonCtermOffset()-Constants.CTERM_FIX_MOD, 0, minDelta, maxDelta, Constants.gapTolerance[slot]);
+						tag.getBIonCtermOffset()-Constants.CTERM_FIX_MOD, 0, minDelta, maxDelta, Constants.gapTolerance[slotIdx]);
 				cpool.addAll(bRes);
 			}
 			if( tag.get(0).getPeakProperty() != PeakProperty.N_TERM_B_ION_ONLY && 
@@ -82,7 +80,7 @@ public class DBSearch {
 			{
 				Tag reverseTag= tag.reverseTag();
 				LinkedList<TagPeptide> yRes= ixPDB.getMultiModPeptides(reverseTag.getYIonNtermOffset()-Constants.NTERM_FIX_MOD, reverseTag.sequence().toString(),
-						reverseTag.getYIonCtermOffset()-Constants.CTERM_FIX_MOD, 1, minDelta, maxDelta, Constants.gapTolerance[slot]);
+						reverseTag.getYIonCtermOffset()-Constants.CTERM_FIX_MOD, 1, minDelta, maxDelta, Constants.gapTolerance[slotIdx]);
 				cpool.addAll(yRes);
 			}
 			realTag++;

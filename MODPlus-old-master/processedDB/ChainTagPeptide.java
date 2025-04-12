@@ -3,24 +3,18 @@ package processedDB;
 import java.util.ArrayList;
 import java.util.Collections;
 
+import moda.ThreadPoolManager;
 import modi.Constants;
-import modi.ThreadPoolManager;
 
 public class ChainTagPeptide extends MODPeptide {
-
-
-	private double a;
-	private double b;
-	private double shiftWindow;
+	private static double	a = ( Constants.maxModifiedMass < 0 )?  Constants.gapTolerance[ThreadPoolManager.getSlotIndex()] : Constants.maxModifiedMass+Constants.gapTolerance[ThreadPoolManager.getSlotIndex()];
+	private static double	b = ( Constants.minModifiedMass > 0 )? -Constants.gapTolerance[ThreadPoolManager.getSlotIndex()] : Constants.minModifiedMass-Constants.gapTolerance[ThreadPoolManager.getSlotIndex()];
+	private static double	shiftWindow = (a - b);
 	
 	ArrayList<SequenceTag> mTags;
 
 	public ChainTagPeptide(int s, int e, SequenceTag tag){
 		super(s, e);
-		int slot = ThreadPoolManager.getSlotIndex();
-		a = ( Constants.maxModifiedMass < 0 )?  Constants.gapTolerance[slot] : Constants.maxModifiedMass+Constants.gapTolerance[slot];
-		b = ( Constants.minModifiedMass > 0 )? -Constants.gapTolerance[slot] : Constants.minModifiedMass-Constants.gapTolerance[slot];
-		shiftWindow = (a - b);
 		mTags = new ArrayList<SequenceTag>();
 		mTags.add(tag);
 	}

@@ -2,7 +2,6 @@ package moda;
 
 import java.util.ArrayList;
 
-import modi.ThreadPoolManager;
 import processedDB.CandidateContainer;
 import processedDB.ChainTagPeptide;
 import processedDB.SequenceTag;
@@ -118,8 +117,10 @@ public class MultiMOD {
 				if( noOfET >= Constants.numberOfEnzymaticTermini )
 				{
 					double massRange = deltas[rowMax-1] + nTermDeletion + cTermDeletion;
-					int slot = ThreadPoolManager.getSlotIndex();
-					if( (massRange < Constants.maxModifiedMass && massRange > Constants.minModifiedMass) || Math.abs(massRange) < Constants.precursorTolerance[slot] )
+
+					int slotIdx = ThreadPoolManager.getSlotIndex();
+					if( (massRange < Constants.maxModifiedMass && massRange > Constants.minModifiedMass) ||
+							Math.abs(massRange) < Constants.precursorTolerance[slotIdx] )
 					{
 						double[] ptms = new double[rowMax];
 						int[] intptms = new int[rowMax];
@@ -210,8 +211,9 @@ public class MultiMOD {
 				if( noOfET >= Constants.numberOfEnzymaticTermini )
 				{
 					double massRange = deltas[rowMax-1] + nTermDeletion + cTermDeletion;
-					int slot = ThreadPoolManager.getSlotIndex();
-					if( (massRange < Constants.maxModifiedMass && massRange > Constants.minModifiedMass) || Math.abs(massRange) < Constants.precursorTolerance[slot] )
+					int slotIdx = ThreadPoolManager.getSlotIndex();
+					if( (massRange < Constants.maxModifiedMass && massRange > Constants.minModifiedMass) ||
+							Math.abs(massRange) < Constants.precursorTolerance[slotIdx] )
 					{
 						double[] ptms = new double[rowMax];
 						int[] intptms = new int[rowMax];

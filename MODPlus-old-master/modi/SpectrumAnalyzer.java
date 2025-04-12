@@ -2,6 +2,7 @@ package modi;
 
 import java.util.LinkedList;
 
+import moda.ThreadPoolManager;
 import msutil.PGraph;
 import msutil.ProtCutter;
 
@@ -90,11 +91,9 @@ public class SpectrumAnalyzer {
 	{
 		if( primitiveTags == null || ixPDB == null )
 			return null;
-
-		int slot = ThreadPoolManager.getSlotIndex();
-		System.out.println("slot in C : " + slot);
-		double minDelta = (Constants.minModifiedMass < 0)? Constants.minModifiedMass - Constants.gapTolerance[slot] : - Constants.gapTolerance[slot];
-		double maxDelta = (Constants.maxModifiedMass > 0)? Constants.maxModifiedMass + Constants.gapTolerance[slot] : + Constants.gapTolerance[slot];
+		int slotIdx = ThreadPoolManager.getSlotIndex();
+		double minDelta = (Constants.minModifiedMass < 0)? Constants.minModifiedMass - Constants.gapTolerance[slotIdx] : - Constants.gapTolerance[slotIdx];
+		double maxDelta = (Constants.maxModifiedMass > 0)? Constants.maxModifiedMass + Constants.gapTolerance[slotIdx] : + Constants.gapTolerance[slotIdx];
 		TagPool longTags = primitiveTags.extractAbove(Constants.minTagLengthPeptideShouldContain);
 
 		int realTag = 0;
@@ -103,12 +102,12 @@ public class SpectrumAnalyzer {
 		for(Tag tag : longTags){
 			
 			RetrivedPeptideMap bRes= ixPDB.getRetrivedPeptides(orbMass, enzyme, NTT, tag.getBIonNtermOffset()-Constants.NTERM_FIX_MOD, tag, 
-					tag.getBIonCtermOffset()-Constants.CTERM_FIX_MOD, IonDirection.B_DIRECTION, minDelta, maxDelta, Constants.gapTolerance[slot]);
+					tag.getBIonCtermOffset()-Constants.CTERM_FIX_MOD, IonDirection.B_DIRECTION, minDelta, maxDelta, Constants.gapTolerance[slotIdx]);
 			searchResults.combine(bRes);
 			
 			Tag reverseTag= tag.reverseTag();
 			RetrivedPeptideMap yRes= ixPDB.getRetrivedPeptides(orbMass, enzyme, NTT, reverseTag.getYIonNtermOffset()-Constants.NTERM_FIX_MOD, reverseTag, 
-					reverseTag.getYIonCtermOffset()-Constants.CTERM_FIX_MOD, IonDirection.Y_DIRECTION, minDelta, maxDelta, Constants.gapTolerance[slot]);
+					reverseTag.getYIonCtermOffset()-Constants.CTERM_FIX_MOD, IonDirection.Y_DIRECTION, minDelta, maxDelta, Constants.gapTolerance[slotIdx]);
 			searchResults.combine(yRes);
 			realTag++;
 			

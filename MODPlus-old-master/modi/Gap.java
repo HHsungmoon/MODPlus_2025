@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 
+import moda.ThreadPoolManager;
 import msutil.PGraph;
 
 public class Gap implements SpecInterpretation {
@@ -183,19 +184,19 @@ public class Gap implements SpecInterpretation {
 	}
 	
 	public boolean isReasonable(){
-		if( !Constants.isInModifiedRange( this.offset ) )
-			return false;
-
-		int slot = ThreadPoolManager.getSlotIndex();
-
+		if( !Constants.isInModifiedRange( this.offset ) ) return false;
+		int slotIdx = ThreadPoolManager.getSlotIndex();
+		
 		int pos = 0; //because no. of allowed mods is max two
 		if( start == 0 ) pos = 1;
 		if( end+1 == matchedPeptide.size() ) pos = 2;
 		Sequence seq = matchedPeptide.subSequence(start, end+1);
-		double minMod = Constants.variableModifications[slot].minimumModifiedMass(seq, pos);
-		double maxMod = Constants.variableModifications[slot].maximumModifiedMass(seq, pos);
 
-		if( this.offset < (minMod - Constants.gapTolerance[slot]) || this.offset > (maxMod + Constants.gapTolerance[slot]) ) return false;//*/
+		double minMod = Constants.variableModifications[slotIdx].minimumModifiedMass(seq, pos);
+		double maxMod = Constants.variableModifications[slotIdx].maximumModifiedMass(seq, pos);
+
+	//	System.out.println( this.offset + " " + maxMod + " " +minMod + " " + matchedPeptide.subSequence(start, end+1));
+		if( this.offset < (minMod - Constants.gapTolerance[slotIdx]) || this.offset > (maxMod + Constants.gapTolerance[slotIdx]) ) return false;//*/
 		
 		return true;
 	}

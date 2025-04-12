@@ -1,8 +1,8 @@
 package msutil;
 
+import moda.ThreadPoolManager;
 import modi.Constants;
 import modi.PTM;
-import modi.ThreadPoolManager;
 
 public class Scoring {
 	
@@ -31,8 +31,8 @@ public class Scoring {
 		if( Constants.INSTRUMENT_TYPE == Constants.msms_type.QTOF ) iGraph = new TOFGraph(peptide, ptms, graph);
 		else iGraph= new TRAPGraph(peptide, ptms, graph);
 
-		int slot = ThreadPoolManager.getSlotIndex();
-		if( !Constants.isWithinTolerance(iGraph.getCalculatedMW(), graph.getObservedMW(), Constants.precursorTolerance[slot]) )
+		int slotIdx = ThreadPoolManager.getSlotIndex();
+		if( !Constants.isWithinTolerance(iGraph.getCalculatedMW(), graph.getObservedMW(), Constants.precursorTolerance[slotIdx]) )
 			return -1;
 		
 		iGraph.setScore(graph);

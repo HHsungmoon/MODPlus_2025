@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.TreeSet;
 
+import moda.ThreadPoolManager;
 import msutil.PGraph;
 import msutil.PNode;
 
@@ -75,8 +76,8 @@ public class Spectrum extends ArrayList<Peak> implements Comparable<Spectrum> {
 		
 		int binSize= 100, considered= 10;
 		double minimumCut= bpIntensity*0.001;
-		int slot = ThreadPoolManager.getSlotIndex();
-		double precursoeRange= Constants.precursorTolerance[slot]/this.charge + Constants.fragmentTolerance;
+		int slotIdx = ThreadPoolManager.getSlotIndex();
+		double precursoeRange= Constants.precursorTolerance[slotIdx]/this.charge + Constants.fragmentTolerance;
 		
 		PGraph graph = new PGraph(this.observedMW, charge);
 		

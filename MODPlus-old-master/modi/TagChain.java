@@ -8,6 +8,7 @@ import java.util.LinkedList;
 import java.util.ListIterator;
 import java.util.Map;
 import java.util.TreeSet;
+import moda.ThreadPoolManager;
 
 public class TagChain extends TreeSet<SpecInterpretation> implements Comparable<TagChain> {
 	Peptide		matchedPeptide;
@@ -141,7 +142,7 @@ public class TagChain extends TreeSet<SpecInterpretation> implements Comparable<
 	}
 
 	public void setTagChainScore() {
-		
+		int slotIdx = ThreadPoolManager.getSlotIndex();
 		HashSet<Integer> modtype = new HashSet<Integer>();
 		
 		double gapScore= 0;
@@ -149,8 +150,7 @@ public class TagChain extends TreeSet<SpecInterpretation> implements Comparable<
 		for( SpecInterpretation t : this ){
 			if( t instanceof Gap ) {
 				Gap gap= (Gap)t;
-				int slot = ThreadPoolManager.getSlotIndex();
-				if( Math.abs( gap.getOffset() ) > Constants.gapTolerance[slot] ) {
+				if( Math.abs( gap.getOffset() ) > Constants.gapTolerance[slotIdx] ) {
 					modtype.add( Constants.round(gap.getOffset()) );
 				}
 			}

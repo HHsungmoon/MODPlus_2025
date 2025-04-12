@@ -2,9 +2,9 @@ package msutil;
 
 import java.util.ArrayList;
 
+import moda.ThreadPoolManager;
 import modi.Constants;
 import modi.PTM;
-import modi.ThreadPoolManager;
 
 public abstract class IonGraph extends ArrayList<IonNode> {
 	
@@ -111,8 +111,8 @@ public abstract class IonGraph extends ArrayList<IonNode> {
 			}
 		}
 
-		int slot = ThreadPoolManager.getSlotIndex();
-		int modAcid = ( modifiedMass < Constants.precursorTolerance[slot] )?  0 : (int)Math.ceil( modifiedMass / 110 );
+		int slotIdx = ThreadPoolManager.getSlotIndex();
+		int modAcid = ( modifiedMass < Constants.precursorTolerance[slotIdx] )?  0 : (int)Math.ceil( modifiedMass / 110 );
 		double penalty = modAcid + modifiedResd/2;
 		seqCoverage = (double)seqHit/(len+penalty);		
 		ionCoverage = (double)bbHit /(len+penalty);

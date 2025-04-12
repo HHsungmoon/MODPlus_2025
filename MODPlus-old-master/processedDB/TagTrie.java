@@ -347,7 +347,21 @@ public class TagTrie extends ProtDatabase {
 		
 		return protMatch;
 	}
-	
+
+	public int getTotalTagCount() {
+		int count = 0;
+		for (int i = 0; i < 26; i++) {
+			for (int j = 0; j < 26; j++) {
+				for (int k = 0; k < 26; k++) {
+					count += tagHit[i][j][k];
+				}
+			}
+		}
+		return count;
+	}
+	public int getTagHitCount(char a1, char a2, char a3) {
+		return tagHit[a1 - 'A'][a2 - 'A'][a3 - 'A'];
+	}
 }
 
 

@@ -1,7 +1,7 @@
 package msutil;
 
+import moda.ThreadPoolManager;
 import modi.Constants;
-import modi.ThreadPoolManager;
 
 
 public class PRM {
@@ -57,13 +57,13 @@ public class PRM {
 		int size = bTable.length - slack;
 	
 		int startpoint;
-		int slot = ThreadPoolManager.getSlotIndex();
-		int endpoint = (int)(Constants.precursorTolerance[slot] * accuracy);
-		if( Constants.maxNoOfC13[slot] == 0 ){
+		int slotIdx = ThreadPoolManager.getSlotIndex();
+		int endpoint	= (int)(Constants.precursorTolerance[slotIdx]*accuracy);
+		if( Constants.maxNoOfC13[slotIdx] == 0 ){
 			startpoint	= 	-endpoint;			
 		}//*/
 		else{
-			startpoint = (int)((Constants.minNoOfC13 - Constants.precursorAccuracy[slot]) * accuracy);
+			startpoint	= (int)((Constants.minNoOfC13-Constants.precursorAccuracy[slotIdx])*accuracy);
 		}
 		
 		if( slack < Math.abs(startpoint) || slack < Math.abs(endpoint) ) return 0;
