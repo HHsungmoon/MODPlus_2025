@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Vector;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -413,28 +414,7 @@ public class MODPlus {
 		return 0;
 	}
 
-	public static void printConstantsState(int index) {
-		System.out.println("--------------------" + index + "-------------------");
-
-		System.out.println("precursorTolerance        = " + Constants.precursorTolerance);
-		System.out.println("precursorAccuracy         = " + Constants.precursorAccuracy);
-		System.out.println("gapTolerance              = " + Constants.gapTolerance);
-		System.out.println("gapAccuracy               = " + Constants.gapAccuracy);
-		System.out.println("nonModifiedDelta          = " + Constants.nonModifiedDelta);
-		System.out.println("maxNoOfC13                = " + Constants.maxNoOfC13);
-
-		System.out.println("minModifiedMass           = " + Constants.minModifiedMass);
-		System.out.println("maxModifiedMass           = " + Constants.maxModifiedMass);
-		System.out.println("fragmentTolerance         = " + Constants.fragmentTolerance);
-		System.out.println("PPMTolerance              = " + Constants.PPMTolerance);
-		System.out.println("rangeForIsotopeIncrement  = " + Constants.rangeForIsotopeIncrement);
-
-		System.out.println("canBeModifiedOnFixedAA     = " + Constants.canBeModifiedOnFixedAA);
-		System.out.println("maxPTMPerGap               = " + Constants.maxPTMPerGap);
-		System.out.println("maxPTMPerPeptide           = " + Constants.maxPTMPerPeptide);
-		System.out.println("===================================================");
-	}
-
+	/*
 	static int modplus_mod_search() throws Exception {
 		System.out.println("Starting MODPlus for modification search!");
 
@@ -465,7 +445,7 @@ public class MODPlus {
 
 		long startTime = System.currentTimeMillis();
 
-		// 3. ExecutorService 생성 (ThreadPoolManager.numSlots 개수 사용 - 예: 4개)
+		// 3. ExecutorService 생성 (ThreadPoolManager.numSlots 개수 사용)
 		int numThreads = ThreadPoolManager.numSlots;
 		ExecutorService executor = Executors.newFixedThreadPool(numThreads);
 		List<Future<String>> futureList = new ArrayList<>();
@@ -504,10 +484,10 @@ public class MODPlus {
 						spectrum.setCorrectedParentMW(correctedMW);
 						//System.out.println("    → Corrected MW: " + correctedMW);
 
+						// use slot에 따른 considerIsotopeErr 배열는 set_parameter()에서 이미 초기화되었다고 가정
+						// 여기서는 Constants.maxNoOfC13[slotIdx] 혹은 precursorTolerance[slotIdx] 값 기반의 부울값 사용
 						TagPool tPool = SpectrumAnalyzer.buildTagPool(spectrum);
-						DPHeap heatedPepts = OneMOD.getHeatedPeptides(ixPDB, graph, tPool, /* use slot에 따른 */
-								/* considerIsotopeErr 배열는 set_parameter()에서 이미 초기화되었다고 가정 */
-								/* 여기서는 Constants.maxNoOfC13[slotIdx] 혹은 precursorTolerance[slotIdx] 값 기반의 부울값 사용 */
+						DPHeap heatedPepts = OneMOD.getHeatedPeptides(ixPDB, graph, tPool,
 								(Constants.maxNoOfC13[slotIdx] != 0 || Constants.precursorTolerance[slotIdx] > 0.50001));
 						DPHeap tepidPepts = null;
 						if (Constants.maxPTMPerPeptide > 1) {
@@ -574,6 +554,147 @@ public class MODPlus {
 
 		System.out.println("[MOD-Plus] Elapsed Time : " + (System.currentTimeMillis() - startTime) / 1000 + " Sec");
 		return 0;
+	}
+	*/
+
+
+	// javac -cp ".:lib/*" -d out $(find . -name "*.java")
+	// java -cp "out:lib/*" MODPlus param.xml
+	static int modplus_mod_search() throws Exception {
+		System.out.println("Starting MODPlus for modification search!");
+
+		Constants.MAX_TAG_SIZE = 100;
+		Constants.minTagLength = 2;
+		Constants.minTagLengthPeptideShouldContain = 3;
+		Constants.tagChainPruningRate = 0.4;
+
+		String identifier = Constants.SPECTRUM_LOCAL_PATH;
+		identifier = identifier.substring(0, identifier.lastIndexOf('.'));
+
+		// 1. SpectrumContainer 생성
+		ScanIterator scaniter = ScanIterator.get(Constants.SPECTRUM_LOCAL_PATH, Constants.SPECTRA_FILE_TYPE);
+		if (scaniter == null || scaniter.size() == 0) {
+			System.out.println("Failed to read msms spectra file");
+			return 1;
+		}
+		System.out.println(scaniter.size() + " scans");
+
+		// 2. Protein DB 생성
+		System.out.print("Reading protein database.....  ");
+		StemTagTrie ixPDB = new StemTagTrie(Constants.PROTEIN_DB_LOCAL_PATH);
+		if (ixPDB.getSizeOfEntries() == 0) {
+			System.out.println("Failed to read protein fasta file");
+			return 1;
+		}
+		System.out.println();
+
+		long startTime = System.currentTimeMillis();
+
+		// 3. 스캔 데이터 미리 수집
+		List<ArrayList<MSMScan>> allScanBlocks = new ArrayList<>();
+		while (scaniter.hasNext()) {
+			allScanBlocks.add(scaniter.getNext());
+		}
+
+		// 4. 병렬 처리 실행
+		List<Future<String>> futureList = runParallelSearch(allScanBlocks, ixPDB, scaniter.getFileName());
+
+		// 5. 결과 수집 및 출력
+		try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(identifier + ".modplus.txt")))) {
+			for (int i = 0; i < futureList.size(); i++) {
+				try {
+					out.print(futureList.get(i).get());
+				} catch (ExecutionException e) {
+					System.err.println("⚠ Error in block " + (i + 1) + ": " + e.getCause());
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}
+
+		}
+
+		System.out.println("[MOD-Plus] Elapsed Time : " + (System.currentTimeMillis() - startTime) / 1000 + " Sec");
+		return 0;
+	}
+
+	private static List<Future<String>> runParallelSearch(List<ArrayList<MSMScan>> scanBlocks, StemTagTrie ixPDB, String fileName) throws InterruptedException {
+		int numThreads = ThreadPoolManager.numSlots;
+		ExecutorService executor = Executors.newFixedThreadPool(numThreads);
+		List<Future<String>> futures = new ArrayList<>();
+
+		for (int blockIdx = 0; blockIdx < scanBlocks.size(); blockIdx++) {
+			final ArrayList<MSMScan> chargedSpectra = scanBlocks.get(blockIdx);
+			final int currentBlock = blockIdx + 1;
+			final int totalBlocks = scanBlocks.size();
+
+			Future<String> future = executor.submit(() -> processBlock(currentBlock, totalBlocks, chargedSpectra, ixPDB, fileName));
+			futures.add(future);
+		}
+
+		executor.shutdown();
+		executor.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+		return futures;
+	}
+
+	private static String processBlock(int blockIndex, int totalBlocks, ArrayList<MSMScan> chargedSpectra, StemTagTrie ixPDB, String fileName)
+            throws Exception {
+		int slotIdx = ThreadPoolManager.getSlotIndex();
+		StringBuilder resultSB = new StringBuilder();
+
+		System.out.println("MODPlus | " + blockIndex + "/" + totalBlocks);
+
+		int selected = -1;
+		ArrayList<AnsPeptide> candidates = null;
+
+		for (int i = 0; i < chargedSpectra.size(); i++) {
+			Spectrum spectrum = chargedSpectra.get(i).getSpectrum();
+
+			if (spectrum.getObservedMW() > Constants.maxPeptideMass)
+				continue;
+
+			PGraph graph = spectrum.getPeakGraph();
+			double correctedMW = graph.correctMW(dynamicPMCorrection);
+			spectrum.setCorrectedParentMW(correctedMW);
+
+			TagPool tPool = SpectrumAnalyzer.buildTagPool(spectrum);
+			DPHeap heatedPepts = OneMOD.getHeatedPeptides(ixPDB, graph, tPool,
+					(Constants.maxNoOfC13[slotIdx] != 0 || Constants.precursorTolerance[slotIdx] > 0.50001));
+
+			DPHeap tepidPepts = null;
+			if (Constants.maxPTMPerPeptide > 1 && (heatedPepts == null || !heatedPepts.isConfident())) {
+				tepidPepts = heatedPepts;
+				heatedPepts = MultiMOD.getHeatedPeptides(ixPDB, graph, tPool, dynamicPMCorrection);
+			}
+
+			if (heatedPepts == null)
+				continue;
+
+			HeatedDB bitDB = getHeatedDB(ixPDB, heatedPepts, tepidPepts);
+			TagTrie bitTrie = bitDB.getPartialDB(ixPDB);
+			ArrayList<AnsPeptide> tp = dynamicMODeye(bitTrie, graph, tPool);
+
+			if (!tp.isEmpty()) {
+				if (candidates == null || candidates.get(0).compareTo(tp.get(0)) == 1) {
+					candidates = tp;
+					selected = i;
+				}
+			}
+		}
+
+		if (selected != -1) {
+			MSMScan scan = chargedSpectra.get(selected);
+			HashMap<String, ArrayList<PeptideMatchToProtein>> seqToProtMap = new HashMap<>();
+
+			resultSB.append(">>").append(fileName).append("\t").append(scan.getHeader()).append("\n");
+			for (AnsPeptide peptide : candidates) {
+				String tpSeq = peptide.getPeptideSequence();
+				ArrayList<PeptideMatchToProtein> matchedProteins = seqToProtMap.computeIfAbsent(tpSeq, ixPDB::getMatchProteins);
+				resultSB.append(peptide.toMODPlus(scan.getObservedMW(), matchedProteins)).append("\n");
+			}
+			resultSB.append("\n");
+		}
+
+		return resultSB.toString();
 	}
 
 

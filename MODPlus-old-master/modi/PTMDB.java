@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Stack;
 import java.util.TreeMap;
 
 import moda.ThreadPoolManager;
@@ -141,61 +142,105 @@ public class PTMDB extends ArrayList<PTM> {
 	private int					numMaxMods;
 
 	// Finding PTMs by Exhaustive Depth-first-search
-	private void findPTM_DFS( double mass, int pos, int cnt, int extra )
-	{
-		int slotIdx = ThreadPoolManager.getSlotIndex();
-		// when search has reached the leaf node(end of sequence), check result
-		if ( pos == seq.size() ) {			
-			double ierror = Math.abs( mass - massDiff );
-		//	System.out.println(Constants.gapTolerance);
-		//	if ( ierror <= Constants.gapTolerance ) 
-			if ( ierror <= Constants.gapTolerance[slotIdx] && Constants.isWithinAccuracy(ierror) )
-			{
-				PTMRun run = new PTMRun();
-				for (int i=0; i<seq.size(); i++)
-					if ( occur[i] != null ){
-						run.add(new PTMOccurrence(i, occur[i]));
-					}
-				
-				if ( run.size() > 0 ) {
-					run.setError( ierror );
-					this.result.add(run);
-				}
+
+	// Improved iterative version of findPTM_DFS with occur state tracking
+	private void findPTM_DFS() {
+		class State {
+			double mass;
+			int pos, cnt, extra;
+			PTM ptmAtPos;
+
+			State(double mass, int pos, int cnt, int extra, PTM ptmAtPos) {
+				this.mass = mass;
+				this.pos = pos;
+				this.cnt = cnt;
+				this.extra = extra;
+				this.ptmAtPos = ptmAtPos;
 			}
-			return;
-		}
-		
-		// recursion call without checking PTM on this pos
-		findPTM_DFS( mass, pos+1, cnt, extra );		
-		
-		if( cnt >= Constants.maxPTMPerGap ) return;
-		if( extra == 1 && numMaxMods == 1 ) {
-			if ( numNextFixSite[pos] == 0 ) return;
 		}
 
-		int residueIndex = seq.get(pos).getIndex();
-		for (int i=1; i<PTMPosition.PTMPOSITION_COUNT.ordinal(); i++) {
-			if (pos>0 && pos<seq.size()-1 && i!=1) continue;
-			if ((i==2 || i==4) && pos!=0) continue;
-			if ((i==3 || i==5) && pos!=seq.size()-1) continue;
-			
-			if ((i==2) && this.position!=PTMPosition.ANY_N_TERM 
-					&& this.position!=PTMPosition.PROTEIN_N_TERM ) continue;
-			if ((i==3) && this.position!=PTMPosition.ANY_C_TERM 
-					&& this.position!=PTMPosition.PROTEIN_C_TERM ) continue;
-			
-			if ((i==4) && this.position!=PTMPosition.PROTEIN_N_TERM ) continue;
-			if ((i==5) && this.position!=PTMPosition.PROTEIN_C_TERM ) continue;
-			
-			for (PTM ptm : PTMTable[residueIndex][i]) {				
-				occur[pos] = ptm;				
-				if( extra + ptm.getModCount() > numMaxMods ) continue;
-				findPTM_DFS( mass + ptm.getMassDifference(), pos+1, cnt+1, extra+ptm.getModCount() );
-						
+		Stack<State> stack = new Stack<>();
+		stack.push(new State(0.0, 0, 0, 0, null));
+
+		int slotIdx = ThreadPoolManager.getSlotIndex();
+
+		while (!stack.isEmpty()) {
+			State s = stack.pop();
+
+			// Skip invalid pos
+			if (s.pos > seq.size()) continue;
+
+			// Restore occur[pos]
+			if (s.pos > 0 && s.pos - 1 < occur.length) {
+				occur[s.pos - 1] = s.ptmAtPos;
+			}
+
+			// Base case: end of sequence
+			if (s.pos == seq.size()) {
+				double ierror = Math.abs(s.mass - massDiff);
+				if (ierror <= Constants.gapTolerance[slotIdx] && Constants.isWithinAccuracy(ierror)) {
+					PTMRun run = new PTMRun();
+					for (int i = 0; i < seq.size(); i++) {
+						if (occur[i] != null) {
+							run.add(new PTMOccurrence(i, occur[i]));
+						}
+					}
+					if (run.size() > 0) {
+						run.setError(ierror);
+						this.result.add(run);
+					}
+				}
+				continue;
+			}
+
+			if (s.pos >= seq.size() || seq.get(s.pos) == null) {
+				System.err.println("NULL AminoAcid at seq[" + s.pos + "], skipping...");
+				continue;
+			}
+
+			// Option without applying PTM
+			stack.push(new State(s.mass, s.pos + 1, s.cnt, s.extra, null));
+
+			if (s.cnt >= Constants.maxPTMPerGap) continue;
+			if (s.extra == 1 && numMaxMods == 1 && (s.pos >= numNextFixSite.length || numNextFixSite[s.pos] == 0)) continue;
+
+			int residueIndex = seq.get(s.pos).getIndex();
+			if (residueIndex >= PTMTable.length || PTMTable[residueIndex] == null) continue;
+
+			for (int i = 1; i < PTMPosition.PTMPOSITION_COUNT.ordinal(); i++) {
+				if (s.pos > 0 && s.pos < seq.size() - 1 && i != 1) continue;
+				if ((i == 2 || i == 4) && s.pos != 0) continue;
+				if ((i == 3 || i == 5) && s.pos != seq.size() - 1) continue;
+
+				if ((i == 2) && this.position != PTMPosition.ANY_N_TERM && this.position != PTMPosition.PROTEIN_N_TERM) continue;
+				if ((i == 3) && this.position != PTMPosition.ANY_C_TERM && this.position != PTMPosition.PROTEIN_C_TERM) continue;
+				if ((i == 4) && this.position != PTMPosition.PROTEIN_N_TERM) continue;
+				if ((i == 5) && this.position != PTMPosition.PROTEIN_C_TERM) continue;
+
+				PTM[] ptms = PTMTable[residueIndex][i].toArray(new PTM[0]);
+				if (ptms == null) continue;
+
+				for (PTM ptm : ptms) {
+					if (ptm == null) continue;
+					if (s.extra + ptm.getModCount() > numMaxMods) continue;
+
+					stack.push(new State(
+							s.mass + ptm.getMassDifference(),
+							s.pos + 1,
+							s.cnt + 1,
+							s.extra + ptm.getModCount(),
+							ptm
+					));
+				}
+			}
+
+			// Clear occur[pos] after processing (for safety)
+			if (s.pos < occur.length) {
+				occur[s.pos] = null;
 			}
 		}
-		occur[pos] = null;
 	}
+
 
 	// Hash table for reusing the result for Gaps already searched once
 	private HashMap< GapKey, PTMSearchResult >	hashTable = new HashMap< GapKey, PTMSearchResult >();
@@ -240,7 +285,7 @@ public class PTMDB extends ArrayList<PTM> {
 			}
 		}
 		
-		findPTM_DFS( 0.0, 0, 0, 0 );
+		findPTM_DFS();
 		this.result		= null;		// release reference from PTMDB class
 		
 		searchResult = new PTMSearchResult(newGapInterpret, newGapInterpret != null && newGapInterpret.size() > 0);
