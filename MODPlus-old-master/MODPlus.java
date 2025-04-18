@@ -550,7 +550,7 @@ public class MODPlus {
 			MSMScan scan = chargedSpectra.get(selected);
 			HashMap<String, ArrayList<PeptideMatchToProtein>> seqToProtMap = new HashMap<>();
 
-			resultSB.append(">>" + Constants.SPECTRUM_LOCAL_PATH.substring(0, 4) + "\t").append(scan.getHeader()).append("\n");
+			resultSB.append(">> ").append(scan.getHeader()).append("\n");
 			for (AnsPeptide peptide : candidates) {
 				String tpSeq = peptide.getPeptideSequence();
 				ArrayList<PeptideMatchToProtein> matchedProteins = seqToProtMap.computeIfAbsent(tpSeq, ixPDB::getMatchProteins);

@@ -76,8 +76,6 @@ public class StemTagTrie extends ArrayList<TagTrie> {
 				this.add( tt );
 				sizeOfEntries += stem.size();
 				sizeOfResidues += stemAA;
-				stemAA = 0;
-				stem= null;
 			}
 			in.close();						
 			System.out.println( sizeOfEntries+" proteins / "  + sizeOfResidues+" residues" + " ("+this.size()+")" );
