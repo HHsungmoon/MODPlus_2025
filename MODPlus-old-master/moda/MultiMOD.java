@@ -20,10 +20,11 @@ import modi.TagPool;
 
 public class MultiMOD {
 
-	private static int bestOnlineScore = 2;
-	
-	public static DPHeap getHeatedPeptides( StemTagTrie stemDB, PGraph graph, TagPool tPool, boolean dynamicPMCorrection ){		
-		bestOnlineScore = 2;
+	public static int[] bestOnlineScore = new int[ThreadPoolManager.numSlots];
+
+	public static DPHeap getHeatedPeptides( StemTagTrie stemDB, PGraph graph, TagPool tPool, boolean dynamicPMCorrection ){
+		int slot = ThreadPoolManager.getSlotIndex();
+		bestOnlineScore[slot] = 2;
 		DPHeap annotation = null;
 		
 		for( TagTrie stem : stemDB ){
@@ -337,7 +338,8 @@ public class MultiMOD {
 		
 		// back tracking
 		MatCell initNode = specMatrix[0][smStart], tarNode = specMatrix[rowMax-1][smEnd-1];
-		if( tarNode.score < bestOnlineScore/2 ) return null;
+		int slot = ThreadPoolManager.getSlotIndex();
+		if( tarNode.score < bestOnlineScore[slot]/2 ) return null;
 		double idScore= tarNode.score;
 		
 		int modifiedSite = 0;
@@ -370,7 +372,8 @@ public class MultiMOD {
 			else forward++;		
 		}
 		
-		if( idScore > bestOnlineScore ) bestOnlineScore = (int)idScore;		
+		if( idScore > bestOnlineScore[slot] )
+			bestOnlineScore[slot] = (int)idScore;
 		DPPeptide identification= new DPPeptide(peptide, (int)idScore, ptms, smStart );	
 		if( modifiedSite > 1 && symMatch > 0 ){
 			DPPeptide temp = dynamicProgrammingWithoutTags(peptide, obsMass, rowMax, smStart, smEnd, specMatrix, 
@@ -431,7 +434,8 @@ public class MultiMOD {
 		
 		MatCell initNode = specMatrix[0][smStart], tarNode = specMatrix[endingTag][smEnd-1];
 		double idScore= ( tarNode.nominalDelta == 0 )? tarNode.score : tarNode.score - Constants.rNorm[0];
-		if( idScore < bestOnlineScore/2 ) return null;
+		int slot = ThreadPoolManager.getSlotIndex();
+		if( idScore < bestOnlineScore[slot]/2 ) return null;
 		
 		double[] ptms= new double[colMax-1];
 		double[] matchedList = new double[colMax];	
@@ -458,7 +462,9 @@ public class MultiMOD {
 				backward--;
 			else forward++;		
 		}
-		if( idScore > bestOnlineScore ) bestOnlineScore = (int)idScore;	
+
+		if( idScore > bestOnlineScore[slot] )
+			bestOnlineScore[slot] = (int)idScore;
 		return new DPPeptide(peptide, (int)idScore, ptms, smStart );	
 	}
 	

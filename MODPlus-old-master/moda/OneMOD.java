@@ -16,31 +16,32 @@ import modi.SpectrumAnalyzer;
 import modi.TagPool;
 
 public class OneMOD {
-	
-	private static int bestOnlineScore = 2;
 
-	public static DPHeap getHeatedPeptides( StemTagTrie stemDB, PGraph graph, TagPool tPool, boolean dynamicPMCorrection ){		
-		bestOnlineScore = 2;
+	public static int[] bestOnlineScore = new int[ThreadPoolManager.numSlots];  // 초기값: 2로 설정 필요
+
+	public static DPHeap getHeatedPeptides( StemTagTrie stemDB, PGraph graph, TagPool tPool, boolean dynamicPMCorrection ){
+		int slot = ThreadPoolManager.getSlotIndex();
+		bestOnlineScore[slot] = 2;
 		DPHeap annotation = null;
 
 		for( TagTrie stem : stemDB ){
 			CandidateContainer cpool= DBSearch.construct_onemod_cpool(tPool, graph.getCorrectedMW(), stem);
-			
+
 			DPHeap sanno = null;
-			if( dynamicPMCorrection ) 
+			if( dynamicPMCorrection )
 				sanno= run_dynamic_mass_mode( cpool, graph, stem );
 			else
 				sanno= run_static_mass_mode( cpool, graph, stem );
-		
+
 			if( annotation == null )
 				annotation = sanno;
 			else
 				annotation.insertAll(sanno);
-		}		
-		
+		}
+
 		if( annotation.evaluate(graph) < 1 )
 			return null;
-		
+
 		return annotation;
 	}
 	
@@ -239,7 +240,8 @@ public class OneMOD {
 		
 	static DPPeptide dynamic_programming(String peptide, double obsMass, int rowMax, int smStart, int smEnd, 
 			MatCell[][] specMatrix, PRM prmTable, double pmzErr){	
-		
+
+
 		int colMax= smEnd-smStart, endingTag= 1;			
 		if( specMatrix[endingTag][smStart].nominalDelta > Constants.maxModifiedMass ) return null;
 	
@@ -284,7 +286,8 @@ public class OneMOD {
 		
 		MatCell initNode = specMatrix[0][smStart], tarNode = specMatrix[endingTag][smEnd-1];
 		double idScore= ( tarNode.nominalDelta == 0 )? tarNode.score : tarNode.score - Constants.rNorm[0];
-		if( idScore < bestOnlineScore/2 ) return null;
+		int slot = ThreadPoolManager.getSlotIndex();
+		if( idScore < bestOnlineScore[slot]/2 ) return null;
 		
 		double[] ptms= new double[colMax-1];
 		double[] matchedList = new double[colMax];		
@@ -311,7 +314,9 @@ public class OneMOD {
 				backward--;
 			else forward++;		
 		}
-		if( idScore > bestOnlineScore ) bestOnlineScore = (int)idScore;	
+
+		if( idScore > bestOnlineScore[slot] )
+			bestOnlineScore[slot] = (int)idScore;
 		return new DPPeptide(peptide, (int)idScore, ptms, smStart);	
 	}
 	
