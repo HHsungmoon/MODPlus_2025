@@ -118,15 +118,9 @@ public class AminoAcid implements Comparable<AminoAcid> {
 		null, //new AminoAcid('Z',	0,			0,		"_invalid_"),
 		null, //new AminoAcid('*',	0,			0,		"_invalid_"),
 		null //new AminoAcid('-',	0,			0,		"_invalid_"),
-	//	new AminoAcid('@',	113.08406,	113.2, "leusine or isoleucine",	20),
-	//	new AminoAcid('*',			0,		0, "N-terminal",			21),
-	//	new AminoAcid('-',			0,		0, "C-terminal",			22),
-	//	new AminoAcid('&',			0,		0, "Modified Amino Acid", 	23),
-	//	new AminoAcid('~',	115.04293,	115.1,	"deamidated asparagine",24),
-	//	new AminoAcid('`',	129.05858,	129.1,	"deamidated glutamine", 25),
 	};
 	
-	public static void modifiedAminoAcidMass(char AA, double fixedModification){
+	public static synchronized  void modifiedAminoAcidMass(char AA, double fixedModification){
 		aaTable[AA-'A'].monoMass += fixedModification;	
 		aaTable[AA-'A'].avgMass += fixedModification;
 		if( aaTable[AA-'A'].monoMass > maxAAMass ) maxAAMass = aaTable[AA-'A'].monoMass;
@@ -160,14 +154,5 @@ public class AminoAcid implements Comparable<AminoAcid> {
 		if( threeL.compareTo("Tyr") == 0 ) return 'Y';
 		return 'X';
 	}
-	
-	public static String toRRIX(){
-		StringBuffer des = new StringBuffer(indexSize+"|");
-		for(int i=0; i<aaTable.length; i++) {
-			if( aaTable[i] == null )
-				continue;	
-			des.append( aaTable[i].toString()+String.format("|%.4f|", aaTable[i].getMass()) );
-		}		
-		return des.toString();
-	}
+
 }

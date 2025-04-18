@@ -13,24 +13,34 @@ import msutil.Scoring;
 
 public class TagChainPool extends TreeMap<Peptide, LinkedList<TagChain>> {
 
-	public void buildTagChainPool(MatchedTagPool matchedTags)
-	{
-		if( matchedTags == null || matchedTags.size() == 0 ){
-			return;
-		}
-		
-		LinkedList<TagChain> tcList = null;
-		
-		Iterator<Map.Entry<Peptide, LinkedList<MatchedTag>>> it = matchedTags.entrySet().iterator();
-		while(it.hasNext())
-		{
-			Map.Entry<Peptide, LinkedList<MatchedTag>> entry = it.next();
-			tcList = TagChain.buildTagChainList(entry);
-			if( tcList.size() == 0 ){ continue; }
+	// 추가: 스레드별 TagChainPool 생성 도우미
+	public static TagChainPool buildTagChainPoolSafely(MatchedTagPool matchedTags) {
+		TagChainPool localPool = new TagChainPool();
+
+		if (matchedTags == null || matchedTags.size() == 0)
+			return localPool;
+
+		for (Map.Entry<Peptide, LinkedList<MatchedTag>> entry : matchedTags.entrySet()) {
+			LinkedList<TagChain> tcList = TagChain.buildTagChainList(entry);
+			if (tcList.size() == 0) continue;
 			Peptide matchedPeptide = new Peptide(entry.getKey());
-			put(matchedPeptide, tcList);
+			localPool.put(matchedPeptide, tcList);
+		}
+
+		return localPool;
+	}
+
+	public void mergeWith(TagChainPool other) {
+		for (Map.Entry<Peptide, LinkedList<TagChain>> entry : other.entrySet()) {
+			Peptide pep = entry.getKey();
+			if (!this.containsKey(pep)) {
+				this.put(pep, entry.getValue());
+			} else {
+				this.get(pep).addAll(entry.getValue()); // 합치기
+			}
 		}
 	}
+
 
 	public void discardPoorTagChain()	// should be modified
 	{

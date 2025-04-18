@@ -4,6 +4,7 @@ import java.util.Collections;
 
 import moda.ThreadPoolManager;
 import modi.Constants;
+import modi.Spectrum;
 
 public class PGraph extends ArrayList<PNode>{
 	private double 	PMZ = 0., obsvMW = 0., corrMW = 0.;
@@ -16,7 +17,22 @@ public class PGraph extends ArrayList<PNode>{
 		charge = c;
 		PMZ = (obsvMW + charge*Constants.Proton)/charge;
 	}
-	
+	public PGraph(Spectrum spectrum) {
+		this.obsvMW = spectrum.getObservedMW();
+		this.charge = spectrum.getCharge();
+		this.corrMW = this.obsvMW;  // 초기에는 보정 전 질량
+		this.PMZ = (this.obsvMW + charge * Constants.Proton) / charge;
+
+		// Spectrum이 가지고 있는 PGraph가 있으면 복사 수행
+		PGraph original = spectrum.getPeakGraph();
+		for (PNode node : original) {
+			this.add(new PNode(node));  // PNode 복사 생성자 필요
+		}
+		this.TIC = original.getTIC();
+	}
+	public double getTIC() {
+		return TIC;
+	}
 	public int getCharge(){ return charge; }
 	public double getObservedMW(){ return obsvMW; }	
 	public double getCorrectedMW(){ return corrMW; }
@@ -26,6 +42,7 @@ public class PGraph extends ArrayList<PNode>{
 		rankingArrange();
 		Collections.sort(this);
 	}
+
 	public void refresh(){
 		for( PNode x : this )
 			x.assign( false );

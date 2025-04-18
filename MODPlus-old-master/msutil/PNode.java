@@ -20,6 +20,18 @@ public class PNode implements Comparable<PNode> {
 		localRank = r;
 		norm = rn;
 	}
+	// 복사 생성자
+	public PNode(PNode other) {
+		this.mass = other.mass;
+		this.intensity = other.intensity;
+		this.norm = other.norm;
+		this.annotation = other.annotation;
+		this.assigned = other.assigned;
+		this.localRank = other.localRank;
+		this.b_prm = other.b_prm;
+		this.y_prm = other.y_prm;
+	}
+
 	public double 	getMass() { return mass; }
 	public double 	getIntensity() { return intensity; }
 	public double 	getNorm() { return norm; }

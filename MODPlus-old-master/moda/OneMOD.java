@@ -29,13 +29,17 @@ public class OneMOD {
 			DPHeap sanno = null;
 			if( dynamicPMCorrection ) 
 				sanno= run_dynamic_mass_mode( cpool, graph, stem );
-			else sanno= run_static_mass_mode( cpool, graph, stem );
+			else
+				sanno= run_static_mass_mode( cpool, graph, stem );
 		
-			if( annotation == null ) annotation = sanno;
-			else annotation.insertAll(sanno);
+			if( annotation == null )
+				annotation = sanno;
+			else
+				annotation.insertAll(sanno);
 		}		
 		
-		if( annotation.evaluate(graph) < 1 ) return null;
+		if( annotation.evaluate(graph) < 1 )
+			return null;
 		
 		return annotation;
 	}

@@ -31,7 +31,7 @@ public class MSMass {
 	public static double getMinAAMass(){
 		return minAAMass;
 	}
-	public static void modifiedAminoAcidMass(char AA, double fixedModification){
+	public static synchronized void modifiedAminoAcidMass(char AA, double fixedModification){
 		aaMass[AA-'A'] += fixedModification;
 		if( aaMass[AA-'A'] > maxAAMass ) maxAAMass = aaMass[AA-'A'];
 		if( aaMass[AA-'A'] < minAAMass ) minAAMass = aaMass[AA-'A'];

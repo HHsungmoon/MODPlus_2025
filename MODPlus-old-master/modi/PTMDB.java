@@ -3,68 +3,56 @@ package modi;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Stack;
 import java.util.TreeMap;
 
 import moda.ThreadPoolManager;
 import msutil.MSMass;
 
-class GapKey extends Object {
-	private Sequence seq;
-	private int massDiff;
-	private static int currentID = 0;
-	private static final int unitSize = 10;
-	private PTMPosition pos;
-	
-	public GapKey( Sequence seq, double massDiff, PTMPosition pos )
-	{
-		this.seq = seq;
-		this.massDiff = (int)(massDiff*unitSize); // should be considered later. 4 just means a big enough tolerance for 0.5
-		this.pos = pos;
-	}
-	
-	public String	getString()		{ return seq.toString(); }
-	public Sequence	getSeq()		{ return seq; }
-	public double	getMassDiff()	{ return massDiff/(double)unitSize; }
-	public int hashCode()
-	{
-		return seq.hashCode() + massDiff + pos.hashCode() ;
-	}
-	
-	public boolean equals(Object key)
-	{
-		if (key instanceof GapKey)
-			return this.seq.equals( ((GapKey)key).seq ) && this.massDiff==((GapKey)key).massDiff 
-				&& this.pos==((GapKey)key).pos;
-		else return false;
-	}
-}
-
-
 public class PTMDB extends ArrayList<PTM> {
 	private ArrayList<PTM>[][]		PTMTable;
 	private TreeMap<Integer, String> classifications = new TreeMap<Integer, String>();
+	private double[][] modRange = new double[2][26];
+	private double[][] ntermModRange = new double[2][26];
+	private double[][] ctermModRange = new double[2][26];
 
-	public boolean isNovelPtm(int site, int res, double mass){
-		int i;
-		for(i=0; i<PTMTable[res][PTMPosition.ANYWHERE.ordinal()].size(); i++ ){
-			int delta= (int)Math.round(PTMTable[res][PTMPosition.ANYWHERE.ordinal()].get(i).getMassDifference());
-			if( delta == (int)Math.round(mass) )
-				return false;		
-		}		
-		if( site == 0 ){
-			for(i=0; i<PTMTable[res][PTMPosition.ANY_N_TERM.ordinal()].size(); i++ ){
-				int delta= (int)Math.round(PTMTable[res][PTMPosition.ANY_N_TERM.ordinal()].get(i).getMassDifference());
-				if( delta == (int)Math.round(mass) )
-					return false;	
+	public PTMDB deepCopy() {
+		PTMDB copy = new PTMDB();
+
+		// PTM 리스트 복제
+		for (PTM ptm : this) {
+			copy.add(ptm.clone()); // PTM 클래스에 clone() 구현 필요
+		}
+
+		// PTMTable 복제
+		if (this.PTMTable != null) {
+			copy.PTMTable = new ArrayList[this.PTMTable.length][];
+			for (int i = 0; i < this.PTMTable.length; i++) {
+				copy.PTMTable[i] = new ArrayList[this.PTMTable[i].length];
+				for (int j = 0; j < this.PTMTable[i].length; j++) {
+					copy.PTMTable[i][j] = new ArrayList<>(this.PTMTable[i][j]);
+				}
 			}
 		}
-		return true;	
+
+		// classifications 복제
+		copy.classifications = new TreeMap<>(this.classifications);
+
+		// 배열 복제
+		copy.modRange = copyMatrix(this.modRange);
+		copy.ntermModRange = copyMatrix(this.ntermModRange);
+		copy.ctermModRange = copyMatrix(this.ctermModRange);
+
+		return copy;
 	}
-	
+
+	private double[][] copyMatrix(double[][] original) {
+		double[][] newMatrix = new double[original.length][original[0].length];
+		for (int i = 0; i < original.length; i++) {
+			System.arraycopy(original[i], 0, newMatrix[i], 0, original[i].length);
+		}
+		return newMatrix;
+	}
+
 	public void constructPTMLookupTable(){
 		constructPTMTable();
 	}
@@ -77,8 +65,7 @@ public class PTMDB extends ArrayList<PTM> {
 			for (int j=0; j<PTMPosition.PTMPOSITION_COUNT.ordinal(); j++)
 				PTMTable[i][j] = new ArrayList<PTM>();		
 		}
-		
-		
+
 		for ( PTM ptm : this ) {
 			if( ptm.getMassDifference() < Constants.minModifiedMass || ptm.getMassDifference() > Constants.maxModifiedMass ) continue;
 			if ( ptm.getResidue() != null ) {
@@ -131,286 +118,45 @@ public class PTMDB extends ArrayList<PTM> {
 		Collections.sort(this);	
 		return 0;
 	}
-	
-	// Temporary valuables for recursive search
-	private Sequence			seq;
-	private	double				massDiff;
-	private	PTMPosition			position;
-	private ArrayList<PTMRun>	result;
-	private PTM[]				occur;
-	private int[]				numNextFixSite;
-	private int					numMaxMods;
 
-	// Finding PTMs by Exhaustive Depth-first-search
-
-	// Improved iterative version of findPTM_DFS with occur state tracking
-	private void findPTM_DFS() {
-		class State {
-			double mass;
-			int pos, cnt, extra;
-			PTM ptmAtPos;
-
-			State(double mass, int pos, int cnt, int extra, PTM ptmAtPos) {
-				this.mass = mass;
-				this.pos = pos;
-				this.cnt = cnt;
-				this.extra = extra;
-				this.ptmAtPos = ptmAtPos;
-			}
-		}
-
-		Stack<State> stack = new Stack<>();
-		stack.push(new State(0.0, 0, 0, 0, null));
-
-		int slotIdx = ThreadPoolManager.getSlotIndex();
-
-		while (!stack.isEmpty()) {
-			State s = stack.pop();
-
-			// Skip invalid pos
-			if (s.pos > seq.size()) continue;
-
-			// Restore occur[pos]
-			if (s.pos > 0 && s.pos - 1 < occur.length) {
-				occur[s.pos - 1] = s.ptmAtPos;
-			}
-
-			// Base case: end of sequence
-			if (s.pos == seq.size()) {
-				double ierror = Math.abs(s.mass - massDiff);
-				if (ierror <= Constants.gapTolerance[slotIdx] && Constants.isWithinAccuracy(ierror)) {
-					PTMRun run = new PTMRun();
-					for (int i = 0; i < seq.size(); i++) {
-						if (occur[i] != null) {
-							run.add(new PTMOccurrence(i, occur[i]));
-						}
-					}
-					if (run.size() > 0) {
-						run.setError(ierror);
-						this.result.add(run);
-					}
-				}
-				continue;
-			}
-
-			if (s.pos >= seq.size() || seq.get(s.pos) == null) {
-				System.err.println("NULL AminoAcid at seq[" + s.pos + "], skipping...");
-				continue;
-			}
-
-			// Option without applying PTM
-			stack.push(new State(s.mass, s.pos + 1, s.cnt, s.extra, null));
-
-			if (s.cnt >= Constants.maxPTMPerGap) continue;
-			if (s.extra == 1 && numMaxMods == 1 && (s.pos >= numNextFixSite.length || numNextFixSite[s.pos] == 0)) continue;
-
-			int residueIndex = seq.get(s.pos).getIndex();
-			if (residueIndex >= PTMTable.length || PTMTable[residueIndex] == null) continue;
-
-			for (int i = 1; i < PTMPosition.PTMPOSITION_COUNT.ordinal(); i++) {
-				if (s.pos > 0 && s.pos < seq.size() - 1 && i != 1) continue;
-				if ((i == 2 || i == 4) && s.pos != 0) continue;
-				if ((i == 3 || i == 5) && s.pos != seq.size() - 1) continue;
-
-				if ((i == 2) && this.position != PTMPosition.ANY_N_TERM && this.position != PTMPosition.PROTEIN_N_TERM) continue;
-				if ((i == 3) && this.position != PTMPosition.ANY_C_TERM && this.position != PTMPosition.PROTEIN_C_TERM) continue;
-				if ((i == 4) && this.position != PTMPosition.PROTEIN_N_TERM) continue;
-				if ((i == 5) && this.position != PTMPosition.PROTEIN_C_TERM) continue;
-
-				PTM[] ptms = PTMTable[residueIndex][i].toArray(new PTM[0]);
-				if (ptms == null) continue;
-
-				for (PTM ptm : ptms) {
-					if (ptm == null) continue;
-					if (s.extra + ptm.getModCount() > numMaxMods) continue;
-
-					stack.push(new State(
-							s.mass + ptm.getMassDifference(),
-							s.pos + 1,
-							s.cnt + 1,
-							s.extra + ptm.getModCount(),
-							ptm
-					));
-				}
-			}
-
-			// Clear occur[pos] after processing (for safety)
-			if (s.pos < occur.length) {
-				occur[s.pos] = null;
-			}
-		}
+	public ArrayList<PTM>[][] getPTMTable() {
+		return this.PTMTable;
 	}
 
-
-	// Hash table for reusing the result for Gaps already searched once
-	private HashMap< GapKey, PTMSearchResult >	hashTable = new HashMap< GapKey, PTMSearchResult >();
-	
-	public void clearHashTable()		{ hashTable.clear(); }
-	
-	// before ver 0.8, deprecated, Not Cashing
-	public PTMSearchResult searchPTM( Sequence seq, double massDiff, PTMPosition position ) {
+	public PTMSearchResult searchPTM(Sequence seq, double massDiff, PTMPosition position) {
 		int slotIdx = ThreadPoolManager.getSlotIndex();
-		PTMSearchResult searchResult;
-		// Hash miss
-		ArrayList<PTMRun> newGapInterpret = new ArrayList<PTMRun>();
-	
-		double ierror = Math.abs( massDiff );
-		if( ierror < Constants.nonModifiedDelta[slotIdx] ){
-			searchResult = new PTMSearchResult( newGapInterpret, true );			
-			return searchResult;
+		ArrayList<PTMRun> newGapInterpret = new ArrayList<>();
+		double ierror = Math.abs(massDiff);
+
+		if (ierror < Constants.nonModifiedDelta[slotIdx]) {
+			return new PTMSearchResult(newGapInterpret, true);
 		}
-		
-		if( ierror < Constants.gapTolerance[slotIdx] ){
+		if (ierror < Constants.gapTolerance[slotIdx]) {
 			PTMRun run = new PTMRun();
 			run.setError(ierror);
-			newGapInterpret.add( run );			
-		}
-		
-		// PTM search
-		this.seq 		= seq;
-		this.massDiff	= massDiff;
-		this.position	= position;
-		this.result		= newGapInterpret;
-		occur = new PTM[seq.size()];
-		numNextFixSite = new int[seq.size()];				
-		numMaxMods = Constants.getMaxPTMOccurrence(seq.size());
-				
-		int cum = ( Constants.CTERM_FIX_MOD !=0 && (this.position == PTMPosition.ANY_C_TERM || this.position == PTMPosition.PROTEIN_C_TERM) )? 1 : 0;
-		for(int i=seq.size()-1; i>-1; i--){
-			if( seq.get(i).isLabelled() ) {
-				numNextFixSite[i] = ++cum;
-			}
-			else {				
-				numNextFixSite[i] = cum;
-			}
-		}
-		
-		findPTM_DFS();
-		this.result		= null;		// release reference from PTMDB class
-		
-		searchResult = new PTMSearchResult(newGapInterpret, newGapInterpret != null && newGapInterpret.size() > 0);
-		
-	//	hashTable.put( new GapKey(seq, massDiff, position), searchResult );
-		
-		return searchResult;
-	}
-	
-	public org.jdom.Element getGapInterpretListElement()
-	{
-		if(Constants.ANALYSIS_VERSION < 1.0)
-			return null;
-		
-		org.jdom.Element gapInterpretListElement = new org.jdom.Element("gapInterpretList");
-		// HashMap< GapKey, ArrayList<PTMRun> > hashTable
-		Iterator<Map.Entry<GapKey, PTMSearchResult>> it = hashTable.entrySet().iterator();
-		
-		// to print actualInterpret entry by order of id
-		
-		HashMap<Integer, GapKey> gapKeyOrder = new HashMap<Integer, GapKey>();
-		while(it.hasNext())
-		{
-			Map.Entry<GapKey, PTMSearchResult> entry = it.next();
-			gapKeyOrder.put(entry.getValue().getID(), entry.getKey());
+			newGapInterpret.add(run);
 		}
 
-		ArrayList<Integer> orderedIDSet = new ArrayList<Integer> (gapKeyOrder.keySet());
-		Collections.sort(orderedIDSet);
-			
-		for(Integer keyID : orderedIDSet)
-		{
-			GapKey key = gapKeyOrder.get(keyID);
-			PTMSearchResult result = hashTable.get(key);
-			
-			org.jdom.Element elemGapInterpret = new org.jdom.Element("gapInterpret");
-			elemGapInterpret.setAttribute(new org.jdom.Attribute("id", String.valueOf(result.getID())));
-			elemGapInterpret.setAttribute(new org.jdom.Attribute("sequence", key.getString()));
-			elemGapInterpret.setAttribute(new org.jdom.Attribute("offset", String.valueOf(key.getMassDiff())));
-			String hasPTMStr;
-			ArrayList<PTMRun> ptmRunList = result.getPTMRun();
-			if(ptmRunList == null || ptmRunList.isEmpty())
-				hasPTMStr = "no";
-			else
-				hasPTMStr = "yes";
-			elemGapInterpret.setAttribute(new org.jdom.Attribute("hasPTM", hasPTMStr));
-			int id = 0;
-			for(PTMRun ptmRun : ptmRunList)
-			{
-				org.jdom.Element elemActualInterpret = new org.jdom.Element("actualInterpret");
-				elemActualInterpret.setAttribute(new org.jdom.Attribute("id", String.valueOf(id++)));
-				
-				org.jdom.Element elemPTMRun = new org.jdom.Element("PTMRun");
-				for(PTMOccurrence occr : ptmRun)
-				{
-					org.jdom.Element elemPTMOccr = new org.jdom.Element("PTMOccr");
-					elemPTMOccr.setAttribute(new org.jdom.Attribute("id", String.valueOf(occr.getPTM().getID())));
-					elemPTMOccr.setAttribute(new org.jdom.Attribute("position", String.valueOf(occr.getPosition())));
-					elemPTMRun.addContent(elemPTMOccr);
-				}
-				elemActualInterpret.addContent(elemPTMRun);
-				
-				org.jdom.Element elemBTheoPeaks = new org.jdom.Element("bTheoPeaks");
-				elemBTheoPeaks.setText(Gap.getTheoreticalMassStr(getBTheoreticalPeaks(key.getSeq(), ptmRun)));
-				elemActualInterpret.addContent(elemBTheoPeaks);
+		PTM[] occur = new PTM[seq.size()];
+		int[] numNextFixSite = new int[seq.size()];
+		int numMaxMods = Constants.getMaxPTMOccurrence(seq.size());
 
-				org.jdom.Element elemYTheoPeaks = new org.jdom.Element("yTheoPeaks");
-				elemYTheoPeaks.setText(Gap.getTheoreticalMassStr(getYTheoreticalPeaks(key.getSeq(), ptmRun)));
-				elemActualInterpret.addContent(elemYTheoPeaks);
-				
-				elemGapInterpret.addContent(elemActualInterpret);
-			}
-			gapInterpretListElement.addContent(elemGapInterpret);
+		int cum = (Constants.CTERM_FIX_MOD != 0 &&
+				(position == PTMPosition.ANY_C_TERM || position == PTMPosition.PROTEIN_C_TERM)) ? 1 : 0;
+
+		for (int i = seq.size() - 1; i >= 0; i--) {
+			numNextFixSite[i] = seq.get(i).isLabelled() ? ++cum : cum;
 		}
-		return gapInterpretListElement;
+
+		PTMRunBuilder.runDFS(this, seq, massDiff, position, occur, numNextFixSite, numMaxMods, newGapInterpret);
+
+		return new PTMSearchResult(newGapInterpret, !newGapInterpret.isEmpty());
 	}
 
-	public	ArrayList<Peak> getBTheoreticalPeaks(Sequence seq, PTMRun run)
-	{
-		double [] ptmMass = new double[seq.size()];
-		for(PTMOccurrence occr : run)
-			ptmMass[occr.getPosition()] += occr.getPTM().getMassDifference();
-
-		ArrayList<Peak> bPeaks = new ArrayList<Peak>();
-		double mass = 0;
-		for(int i=0; i<seq.size()-1; i++)
-		{
-			mass = mass + seq.get(i).getMass() + ptmMass[i];
-			bPeaks.add(new Peak(-1, mass, 0.));
-		}
-		return bPeaks;
-	}
-	
-	public	ArrayList<Peak> getYTheoreticalPeaks(Sequence seq, PTMRun run)
-	{
-		double [] ptmMass = new double[seq.size()];
-		for(PTMOccurrence occr : run)
-			ptmMass[occr.getPosition()] += occr.getPTM().getMassDifference();
-
-		ArrayList<Peak> yPeaks = new ArrayList<Peak>();
-		double mass = 0;
-		for(int i=0; i<seq.size()-1; i++)
-		{
-			mass = mass + seq.get(seq.size()-1-i).getMass() + ptmMass[i];
-			yPeaks.add(new Peak(-1, mass, 0.));
-		}
-		return yPeaks;
-	}
-
-	public PTM	getPTM(String name, char residue){
-		int AA = AminoAcid.getAminoAcid(residue).getIndex();
-		for(int j=0; j<PTMPosition.PTMPOSITION_COUNT.ordinal(); j++){
-			for ( PTM ptm : PTMTable[AA][j] ){
-				if( ptm.getName().equals(name) ){
-					return ptm;
-				}
-			}
-		}
-		return null;
-	}
 	
 	public void sortByPTMPosition(){
 		Collections.sort( this, new PTMPosComparator() );
 	}
-
 	
 	public int setVariableModificatinos( String fileName, double[] fixedAA, boolean canBeModifiedOnFixedAA ) throws Exception
 	{
@@ -641,9 +387,7 @@ public class PTMDB extends ArrayList<PTM> {
 		return 1;
 	}
 
-	private double[][] modRange = new double[2][26];
-	private double[][] ntermModRange = new double[2][26];
-	private double[][] ctermModRange = new double[2][26];
+
 	
 	public double minimumModifiedMass( Sequence seq, int pos ){
 		double min1=0, min2=0, extra = 0;

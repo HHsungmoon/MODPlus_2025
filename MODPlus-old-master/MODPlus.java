@@ -4,11 +4,14 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.text.DateFormat;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Vector;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
@@ -18,6 +21,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import moda.ThreadPoolManager;
+import modi.MatchedTag;
+import modi.Peptide;
+import modi.TagChain;
 import org.jdom.Document;
 import org.jdom.Element;
 import org.jdom.JDOMException;
@@ -370,8 +376,8 @@ public class MODPlus {
 		for (int i = 0; i < numSlots; i++) {
 			// 여기서는 tempFixed와 tempVar가 읽기 전용이라면 동일한 객체를 여러 슬롯에 할당해도 문제가 없으나,
 			// 만약 각 슬롯에서 수정이 일어난다면 deep copy 또는 clone 구현이 필요합니다.
-			Constants.fixedModifications[i] = tempFixed;
-			Constants.variableModifications[i] = tempVar;
+			Constants.fixedModifications[i] = tempFixed.deepCopy();
+			Constants.variableModifications[i] = tempVar.deepCopy();
 			Constants.variableModifications[i].constructPTMLookupTable();
 		}
 
@@ -413,149 +419,6 @@ public class MODPlus {
 		System.out.println();
 		return 0;
 	}
-
-	/*
-	static int modplus_mod_search() throws Exception {
-		System.out.println("Starting MODPlus for modification search!");
-
-		Constants.MAX_TAG_SIZE = 100;
-		Constants.minTagLength = 2;
-		Constants.minTagLengthPeptideShouldContain = 3;
-		Constants.tagChainPruningRate = 0.4;
-
-		String identifier = Constants.SPECTRUM_LOCAL_PATH;
-		identifier = identifier.substring(0, identifier.lastIndexOf('.'));
-
-		// 1. SpectrumContainer 생성
-		ScanIterator scaniter = ScanIterator.get(Constants.SPECTRUM_LOCAL_PATH, Constants.SPECTRA_FILE_TYPE);
-		if (scaniter == null || scaniter.size() == 0) {
-			System.out.println("Failed to read msms spectra file");
-			return 1;
-		}
-		System.out.println(scaniter.size() + " scans");
-
-		// 2. Protein DB 생성
-		System.out.print("Reading protein database.....  ");
-		StemTagTrie ixPDB = new StemTagTrie(Constants.PROTEIN_DB_LOCAL_PATH);
-		if (ixPDB.getSizeOfEntries() == 0) {
-			System.out.println("Failed to read protein fasta file");
-			return 1;
-		}
-		System.out.println();
-
-		long startTime = System.currentTimeMillis();
-
-		// 3. ExecutorService 생성 (ThreadPoolManager.numSlots 개수 사용)
-		int numThreads = ThreadPoolManager.numSlots;
-		ExecutorService executor = Executors.newFixedThreadPool(numThreads);
-		List<Future<String>> futureList = new ArrayList<>();
-
-		// 4. 각 스캔 블록마다 Callable 작업 제출
-		int index = 1;
-		int iterSize = scaniter.size();
-		while (scaniter.hasNext()) {
-			final ArrayList<MSMScan> chargedSpectra = scaniter.getNext();
-			final int currentBlock = index++; // 현재 스캔 블록 번호
-
-			Future<String> future = executor.submit(new Callable<String>() {
-				@Override
-				public String call() throws Exception {
-					int slotIdx = ThreadPoolManager.getSlotIndex();
-
-					StringBuilder resultSB = new StringBuilder();
-
-					// (디버그 로그는 콘솔로만 출력)
-					System.out.println("MODPlus | " + currentBlock + "/" + iterSize);
-
-					int selected = -1;
-					ArrayList<AnsPeptide> candidates = null;
-
-					for (int i = 0; i < chargedSpectra.size(); i++) {
-						Spectrum spectrum = chargedSpectra.get(i).getSpectrum();
-						//System.out.println(" └─ Spectrum Charge " + spectrum.getCharge() + " | ObservedMW: " + spectrum.getObservedMW());
-
-						if (spectrum.getObservedMW() > Constants.maxPeptideMass) {
-							//System.out.println("    → Skipped: Over maxPeptideMass");
-							continue;
-						}
-
-						PGraph graph = spectrum.getPeakGraph();
-						double correctedMW = graph.correctMW(dynamicPMCorrection);
-						spectrum.setCorrectedParentMW(correctedMW);
-						//System.out.println("    → Corrected MW: " + correctedMW);
-
-						// use slot에 따른 considerIsotopeErr 배열는 set_parameter()에서 이미 초기화되었다고 가정
-						// 여기서는 Constants.maxNoOfC13[slotIdx] 혹은 precursorTolerance[slotIdx] 값 기반의 부울값 사용
-						TagPool tPool = SpectrumAnalyzer.buildTagPool(spectrum);
-						DPHeap heatedPepts = OneMOD.getHeatedPeptides(ixPDB, graph, tPool,
-								(Constants.maxNoOfC13[slotIdx] != 0 || Constants.precursorTolerance[slotIdx] > 0.50001));
-						DPHeap tepidPepts = null;
-						if (Constants.maxPTMPerPeptide > 1) {
-							if (heatedPepts == null || !heatedPepts.isConfident()) {
-								tepidPepts = heatedPepts;
-								heatedPepts = MultiMOD.getHeatedPeptides(ixPDB, graph, tPool, dynamicPMCorrection);
-							}
-						}
-						if (heatedPepts == null)
-							continue;
-
-						HeatedDB bitDB = getHeatedDB(ixPDB, heatedPepts, tepidPepts);
-						TagTrie bitTrie = bitDB.getPartialDB(ixPDB);
-						//System.out.println("bitTrie의 전체 태그 개수 = " + bitTrie.getTotalTagCount());
-						//System.out.println("bitTrie에서 TAG 'A-R-G'의 등장 수 = " + bitTrie.getTagHitCount('A','R','G'));
-
-						ArrayList<AnsPeptide> tp = dynamicMODeye(bitTrie, graph, tPool);
-						//System.out.println("    → dynamicMODeye results: " + tp.size() + " candidate(s)");
-
-						if (tp.size() > 0) { // 후보 결정
-							if (candidates == null || candidates.get(0).compareTo(tp.get(0)) == 1) {
-								candidates = tp;
-								selected = i;
-								//System.out.println("    → Selected candidate updated");
-							}
-						}
-					}
-
-					// 최종적으로 결과 문자열에 ">>"로 시작하는 레코드만 추가합니다.
-					if (selected != -1) {
-						MSMScan scan = chargedSpectra.get(selected);
-						HashMap<String, ArrayList<PeptideMatchToProtein>> seqToProtMap = new HashMap<>();
-						// 결과 문자열에 단 한 줄의 헤더를 추가 (>>...)
-						resultSB.append(">>").append(scaniter.getFileName()).append("\t").append(scan.getHeader()).append("\n");
-
-						for (int k = 0; k < candidates.size(); k++) {
-							String tpSeq = candidates.get(k).getPeptideSequence();
-							ArrayList<PeptideMatchToProtein> matchedProteins = seqToProtMap.get(tpSeq);
-							if (matchedProteins == null) {
-								matchedProteins = ixPDB.getMatchProteins(tpSeq);
-								seqToProtMap.put(tpSeq, matchedProteins);
-							}
-							resultSB.append(candidates.get(k).toMODPlus(scan.getObservedMW(), matchedProteins)).append("\n");
-						}
-						resultSB.append("\n");
-					}
-					return resultSB.toString();
-				}
-			});
-			futureList.add(future);
-		}
-
-		executor.shutdown();
-		executor.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
-
-		// 최종적으로 모든 Future에서 리턴된 결과 문자열만 파일에 기록
-		StringBuilder finalOutput = new StringBuilder();
-		for (Future<String> f : futureList) {
-			finalOutput.append(f.get());
-		}
-		try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(identifier + ".modplus.txt")))) {
-			out.print(finalOutput.toString());
-		}
-
-		System.out.println("[MOD-Plus] Elapsed Time : " + (System.currentTimeMillis() - startTime) / 1000 + " Sec");
-		return 0;
-	}
-	*/
 
 
 	// javac -cp ".:lib/*" -d out $(find . -name "*.java")
@@ -617,6 +480,7 @@ public class MODPlus {
 		return 0;
 	}
 
+
 	private static List<Future<String>> runParallelSearch(List<ArrayList<MSMScan>> scanBlocks, StemTagTrie ixPDB, String fileName) throws InterruptedException {
 		int numThreads = ThreadPoolManager.numSlots;
 		ExecutorService executor = Executors.newFixedThreadPool(numThreads);
@@ -664,6 +528,7 @@ public class MODPlus {
 			if (Constants.maxPTMPerPeptide > 1 && (heatedPepts == null || !heatedPepts.isConfident())) {
 				tepidPepts = heatedPepts;
 				heatedPepts = MultiMOD.getHeatedPeptides(ixPDB, graph, tPool, dynamicPMCorrection);
+				//System.out.println("MultiMOD : "+blockIndex);
 			}
 
 			if (heatedPepts == null)
@@ -685,7 +550,7 @@ public class MODPlus {
 			MSMScan scan = chargedSpectra.get(selected);
 			HashMap<String, ArrayList<PeptideMatchToProtein>> seqToProtMap = new HashMap<>();
 
-			resultSB.append(">>").append(fileName).append("\t").append(scan.getHeader()).append("\n");
+			resultSB.append(">>" + Constants.SPECTRUM_LOCAL_PATH.substring(0, 4) + "\t").append(scan.getHeader()).append("\n");
 			for (AnsPeptide peptide : candidates) {
 				String tpSeq = peptide.getPeptideSequence();
 				ArrayList<PeptideMatchToProtein> matchedProteins = seqToProtMap.computeIfAbsent(tpSeq, ixPDB::getMatchProteins);
@@ -699,26 +564,26 @@ public class MODPlus {
 
 
 	private static HeatedDB getHeatedDB( StemTagTrie stemDB, DPHeap candidates, DPHeap tepids ) {
-		
+
 		HeatedDB matchedBits= new HeatedDB();
 		int count = 0;
 		for( DPPeptide dp : candidates ){
-			if( dp.getScore() < 1 ) break;		
-			String modapept = dp.getPeptide();		
-			int pro_start = dp.getProtein();		
+			if( dp.getScore() < 1 ) break;
+			String modapept = dp.getPeptide();
+			int pro_start = dp.getProtein();
 			ProtDatabase proDB = stemDB.get(dp.getStem());
-			matchedBits.add( proDB.getProteinIdentity(pro_start), dp.getStem(), pro_start, pro_start+modapept.length() );				
+			matchedBits.add( proDB.getProteinIdentity(pro_start), dp.getStem(), pro_start, pro_start+modapept.length() );
 			if( ++count == numHeatedPeptides ) break;
 		}
 
 		count = 0;
 		if( tepids != null ){
 			for( DPPeptide dp : tepids ){
-				if( dp.getScore() < 1 ) break;		
-				String modapept = dp.getPeptide();		
-				int pro_start = dp.getProtein();		
+				if( dp.getScore() < 1 ) break;
+				String modapept = dp.getPeptide();
+				int pro_start = dp.getProtein();
 				ProtDatabase proDB = stemDB.get(dp.getStem());
-				matchedBits.add( proDB.getProteinIdentity(pro_start), dp.getStem(), pro_start, pro_start+modapept.length() );			
+				matchedBits.add( proDB.getProteinIdentity(pro_start), dp.getStem(), pro_start, pro_start+modapept.length() );
 				if( ++count == 10 ) break;
 			}
 		}
@@ -728,38 +593,32 @@ public class MODPlus {
 	private static ArrayList<AnsPeptide> dynamicMODeye(TagTrie dynamicDB, PGraph graph, TagPool tPool) throws Exception {
 		double parentMW = graph.getCorrectedMW();
 
-		//System.out.printf("    → Corrected MW: %.9f%n", parentMW);
-
+		// Step 1: MatchedTagPool 생성
 		MatchedTagPool matchedList = SpectrumAnalyzer.extendedBuildMatchedTagPool(
 				tPool, parentMW, dynamicDB, Constants.protease, Constants.numberOfEnzymaticTermini);
 
-		//System.out.println("matchedList size: " + matchedList.size());
+		if (matchedList == null || matchedList.size() == 0) return new ArrayList<>();
 
-		TagChainPool tcPool = new TagChainPool();
-		tcPool.putAll(SpectrumAnalyzer.buildTagChain(matchedList));
-		//System.out.println("TC Pool Size Before discard: " + tcPool.size());
-
+		// Step 2: TagChainPool 안전하게 생성
+		TagChainPool tcPool = TagChainPool.buildTagChainPoolSafely(matchedList);
 		tcPool.discardPoorTagChain();
-		//System.out.println("TC Pool Size After discard: " + tcPool.size());
 
+		// Step 3: PTM 해석 적용
 		boolean specAnnotated = false;
-		if (tcPool.size() > 0) {
-			//System.out.println("Calling interpretTagChain()...");
-			specAnnotated = SpectrumAnalyzer.interpretTagChain( Constants.variableModifications[ThreadPoolManager.getSlotIndex()], tcPool, graph );
-			//System.out.println("interpretTagChain() result: " + specAnnotated);
+		if (!tcPool.isEmpty()) {
+			specAnnotated = SpectrumAnalyzer.interpretTagChain(
+					Constants.variableModifications[ThreadPoolManager.getSlotIndex()], tcPool, graph);
 		}
 
+		// Step 4: 최종 후보 펩타이드 추출
 		ArrayList<AnsPeptide> cands = new ArrayList<>();
-		if (tcPool.size() > 0 && specAnnotated) {
+		if (!tcPool.isEmpty() && specAnnotated) {
 			cands = tcPool.getAnswerPeptides(graph);
 		}
-
-		//System.out.println("TC Pool Size After : " + tcPool.size());
-		//System.out.println("PTM Combination 개수: " + cands.size());
-
 
 		return cands;
 	}
 
-	
+
+
 }

@@ -2,12 +2,12 @@
 <search user="Seungjin" title="BeetleGut" >
 
 
-	<dataset local_path="E:\Study_file\git_hub_upload\한양대학교 졸업 프로젝트\test_simple.mgf" format="mgf" instrument="QTOF" />
-	<database local_path="E:\Study_file\git_hub_upload\한양대학교 졸업 프로젝트\test.fasta" />
+    <dataset local_path="E:\Study_file\git_hub_upload\한양대학교 졸업 프로젝트\test_simple.mgf" format="mgf" instrument="QTOF" />
+    <database local_path="E:\Study_file\git_hub_upload\한양대학교 졸업 프로젝트\test.fasta" />
 	<!--
-	<dataset local_path="/home/hyu2/HSM/b1945_293T_proteinID_09B_QE3_122212.mgf" format="mgf" instrument="QTOF" />
-	<database local_path="/home/hyu2/data_folder/data/uniprotkb_taxonomy_id_9606_AND_reviewed_2025_03_05.fasta" />
--->
+     <dataset local_path="/home/hyu2/HSM/b1945_293T_proteinID_09B_QE3_122212.mgf" format="mgf" instrument="QTOF" />
+     <database local_path="/home/hyu2/data_folder/data/uniprotkb_taxonomy_id_9606_AND_reviewed_2025_03_05.fasta" />
+ -->
 	<combined_enzyme name="Trypsin" nterm_cleave="" cterm_cleave="KR" />
 
 	<instrument_resolution ms="high" msms="high" /> <!-- [high|low] -->

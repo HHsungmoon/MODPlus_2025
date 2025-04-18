@@ -2,6 +2,7 @@ package modi;
 
 import java.util.LinkedList;
 
+import java.util.ListIterator;
 import moda.ThreadPoolManager;
 import msutil.PGraph;
 import msutil.ProtCutter;
@@ -36,57 +37,58 @@ public class SpectrumAnalyzer {
 	public	static TagChainPool buildTagChain(MatchedTagPool matchedTags)
 	{
 		TagChainPool tagChainPool = new TagChainPool();
-		tagChainPool.buildTagChainPool(matchedTags);
+		tagChainPool.buildTagChainPoolSafely(matchedTags);
 		return tagChainPool;
 	}
 
-	public 	static boolean interpretTagChain(PTMDB ptmDB, TagChainPool tcPool, PGraph graph )
-	{				
+	public static boolean interpretTagChain(PTMDB ptmDB, TagChainPool tcPool, PGraph graph) {
 		Spectrum sourceSpectrum = null;
 		boolean specAnnotated = false;
-		
-		for ( LinkedList<TagChain> tagChainList : tcPool.values() )
-		{
-			for (int k=0;k<tagChainList.size(); k++)
-			{
-				TagChain tc = tagChainList.get(k);
-				
+
+		for (LinkedList<TagChain> tagChainList : tcPool.values()) {
+			ListIterator<TagChain> listIt = tagChainList.listIterator();
+
+			while (listIt.hasNext()) {
+				TagChain tc = listIt.next();
+
 				boolean allGapAnnotated = true;
-				if(sourceSpectrum == null) {
+				if (sourceSpectrum == null) {
 					sourceSpectrum = tc.sourceSpectrum;
 				}
-				Peptide pep = tc.getMatchedPeptide();
-				for ( SpecInterpretation si : tc ) {
-					if (!(si instanceof Gap)) continue;
-					Gap gap = (Gap)si;
-					PTMSearchResult interpretation = ptmDB.searchPTM( pep.subSequence(gap.getStart(), gap.getEnd()+1 ), 
-							gap.getOffset(), gap.getPosition() );
 
-					if( !interpretation.isInterpreted() ) {
+				Peptide pep = tc.getMatchedPeptide();
+				for (SpecInterpretation si : tc) {
+					if (!(si instanceof Gap)) continue;
+
+					Gap gap = (Gap) si;
+					Sequence subSeq = pep.subSequence(gap.getStart(), gap.getEnd() + 1);
+					PTMSearchResult interpretation = ptmDB.searchPTM(subSeq, gap.getOffset(), gap.getPosition());
+
+					if (!interpretation.isInterpreted()) {
 						gap.setInterpreted(false);
 						allGapAnnotated = false;
 						tc.setAllGapAnnotated(false);
-						break;
+						break; // PTM 검색 실패 → 이 TagChain 제거 대상
+					} else {
+						gap.setInterpreted(true);
+						gap.setInterpretation(interpretation, graph);
 					}
-					else gap.setInterpreted(true);
-					
-					gap.setInterpretation(interpretation, graph);
 				}
-				
-				if( allGapAnnotated ){
+
+				if (allGapAnnotated) {
 					tc.setAllGapAnnotated(true);
-					specAnnotated = true;		
-				}
-				else{
-					tagChainList.remove(k);
-					k--;
+					specAnnotated = true;
+				} else {
+					listIt.remove(); // 안전한 제거 방식
 				}
 			}
 		}
+
 		return specAnnotated;
 	}
-	
-	public static MatchedTagPool extendedBuildMatchedTagPool(TagPool primitiveTags, double motherMass, 
+
+
+	public static MatchedTagPool extendedBuildMatchedTagPool(TagPool primitiveTags, double motherMass,
 			TagTrie ixPDB, ProtCutter enzyme, int NTT)
 	{
 		if( primitiveTags == null || ixPDB == null )

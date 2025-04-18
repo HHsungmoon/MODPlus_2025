@@ -94,6 +94,17 @@ public class PTM implements Comparable<PTM> {
 		return this.name;
 	}
 
+	public PTM clone() {
+		PTM copy = new PTM(this.id, this.name, this.fullName, this.massDifference, this.avgMassDifference,
+				this.residue, this.position, this.classification);
+		copy.modCount = this.modCount;
+		copy.penalty = this.penalty;
+		copy.diagnosticIon = this.diagnosticIon;
+		copy.neutralLoss = this.neutralLoss;
+		copy.residueNTerm = this.residueNTerm;
+		copy.residueCTerm = this.residueCTerm;
+		return copy;
+	}
 	
 	public String getDescription(){
 		
@@ -148,6 +159,7 @@ class PTMPosComparator implements Comparator<PTM>{
 	public boolean equals(PTM x1, PTM x2){
 		return x1.getPTMPosition().ordinal() == x2.getPTMPosition().ordinal();
 	}
+
 }
 
 
