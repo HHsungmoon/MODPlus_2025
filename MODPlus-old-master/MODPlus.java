@@ -475,8 +475,12 @@ public class MODPlus {
 			}
 
 		}
-
 		System.out.println("[MOD-Plus] Elapsed Time : " + (System.currentTimeMillis() - startTime) / 1000 + " Sec");
+
+		File resultFile = new File(identifier + ".modplus.txt");
+		long fileSizeBytes = resultFile.length();
+		System.out.printf("[MOD-Plus] Output file size: %.2f KB\n", fileSizeBytes / 1024.0);
+
 		return 0;
 	}
 

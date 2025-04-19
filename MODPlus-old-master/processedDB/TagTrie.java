@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedList;
 
+import java.util.List;
 import modi.Constants;
 import modi.IonDirection;
 import modi.Tag;
@@ -57,61 +58,66 @@ public class TagTrie extends ProtDatabase {
 		for( int k=0; k<at_end_of_line; k++ ){
 			if( sequence[k] == delimeter ){				
 				int i = k + 3;
-				for( ; sequence[i] != delimeter; i++){									
-					tagTrie[sequence[i-2]-'A'][sequence[i-1]-'A'][sequence[i]-'A'][tIndex[sequence[i-2]-'A'][sequence[i-1]-'A'][sequence[i]-'A']++] = i-2;
+				for( ; sequence[i] != delimeter; i++){
+					int tmp0 = sequence[i]-'A';
+					int tmp1 = sequence[i-2]-'A';
+					int tmp2 = sequence[i-1]-'A';
+					tagTrie[tmp1][tmp2][tmp0][tIndex[tmp1][tmp2][tmp0]++] = i-2; // fast : little
+					//tagTrie[sequence[i-2]-'A'][sequence[i-1]-'A'][sequence[i]-'A'][tIndex[sequence[i-2]-'A'][sequence[i-1]-'A'][sequence[i]-'A']++] = i-2;
 				}
 				k= i-1;			
 			}
 		}
 	}
 	
-	public LinkedList<MODPeptide> getOneModPeptides(double nGap, String tag, double cGap, int tagType,
+	public ArrayList<MODPeptide> getOneModPeptides(double nGap, String tag, double cGap, int tagType,
 			double minModified, double maxModified, double gapTolerance) {	
 		double tolerance = gapTolerance + isoShift;
-		LinkedList<MODPeptide> matLocal = new LinkedList<MODPeptide>();
-		HashSet<String> peptPool = new HashSet<String>();
+		ArrayList<MODPeptide> matLocal = new ArrayList<>();
+		HashSet<String> peptPool = new HashSet<>();
 		
 		int	listSize  = tagHit[tag.charAt(0)-'A'][tag.charAt(1)-'A'][tag.charAt(2)-'A'];
-		int[] tagList = tagTrie[tag.charAt(0)-'A'][tag.charAt(1)-'A'][tag.charAt(2)-'A'];	
-					
-		for( int thx=0; thx<listSize; thx++ ){	
-			
+		int[] tagList = tagTrie[tag.charAt(0)-'A'][tag.charAt(1)-'A'][tag.charAt(2)-'A'];
+
+		for( int thx=0; thx<listSize; thx++ ){
+
 			int tagIndex = tagList[thx];
-			
+
 			boolean isGapMatched = false;
 			int left = 0, right = 0;
-			
+
 			int preLen= -1, sufLen= -1;
 			double preMass= 0, sufMass= 0;
-			
+
 			int start = tagIndex;
 			double delta = nGap-preMass;
-			while( delta > minModified ){	
-				if( delta < maxModified ) preLen++;	
+			while( delta > minModified ){
+				if( delta < maxModified ) preLen++;
 				if( Math.abs(delta) <= tolerance ) {
 					left = start;
 					isGapMatched = true;
 					start--;
 					break;
 				}
-					
+
 				start--;
-				if( sequence[start]==delimeter || MSMass.getAAMass( sequence[start] ) == 0 ) break;
+				if( sequence[start]==delimeter || MSMass.getAAMass( sequence[start] ) == 0 )
+					break;
 				preMass += MSMass.getAAMass( sequence[start] );
 				delta = nGap-preMass;
 			}
-			
+
 			int end = tagIndex+2;
 			delta = cGap-sufMass;
-			while( delta > minModified ){	
-				if( delta < maxModified ) sufLen++;			
+			while( delta > minModified ){
+				if( delta < maxModified ) sufLen++;
 				if( Math.abs(delta) <= tolerance ) {
 					right = end+1;
 					isGapMatched = true;
 					end++;
 					break;
 				}
-				
+
 				end++;
 				if( sequence[end]==delimeter || MSMass.getAAMass( sequence[end] ) == 0 ) break;
 				sufMass += MSMass.getAAMass( sequence[end] );
@@ -134,11 +140,11 @@ public class TagTrie extends ProtDatabase {
 		return matLocal;
 	}
 	
-	public LinkedList<TagPeptide> getMultiModPeptides(double nGap, String tag, double cGap, int tagType,
+	public List<TagPeptide> getMultiModPeptides(double nGap, String tag, double cGap, int tagType,
 			double minModified, double maxModified, double gapTolerance) {	
 		
-		LinkedList<TagPeptide> matLocal = new LinkedList<TagPeptide>();
-		HashSet<String> peptPool = new HashSet<String>();
+		List<TagPeptide> matLocal = new ArrayList<>();
+		HashSet<String> peptPool = new HashSet<>();
 		
 		int	listSize  = tagHit[tag.charAt(0)-'A'][tag.charAt(1)-'A'][tag.charAt(2)-'A'];
 		int[] tagList = tagTrie[tag.charAt(0)-'A'][tag.charAt(1)-'A'][tag.charAt(2)-'A'];	

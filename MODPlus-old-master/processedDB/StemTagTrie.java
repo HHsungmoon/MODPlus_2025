@@ -30,7 +30,7 @@ public class StemTagTrie extends ArrayList<TagTrie> {
 		try {									
 			BufferedReader in = new BufferedReader(new FileReader(fileName));
 			String s= "<";
-			StringBuffer buffer;	
+			StringBuilder buffer; // a. StringBuffer 보다 이게 조금더 빠름.
 			
 			while( !s.startsWith(">") ) {
 				s = in.readLine();
@@ -41,7 +41,7 @@ public class StemTagTrie extends ArrayList<TagTrie> {
 				Prox protein= new Prox();				
 				protein.setHeader( s.substring(1) );			
 				
-				buffer = new StringBuffer();
+				buffer = new StringBuilder();
 				while( (s = in.readLine()) != null ){
 					if( s.startsWith(">") ) break;
 					for( int aa=0; aa<s.length(); aa++ ){

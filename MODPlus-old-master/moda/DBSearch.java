@@ -1,7 +1,9 @@
 package moda;
 
+import java.util.ArrayList;
 import java.util.LinkedList;
 
+import java.util.List;
 import modi.AminoAcid;
 import modi.Constants;
 import modi.PeakProperty;
@@ -14,7 +16,8 @@ import processedDB.TagTrie;
 
 public class DBSearch {
 
-	public	static CandidateContainer construct_onemod_cpool(TagPool primitiveTags, double motherMass, TagTrie ixPDB) {
+	/*
+	public	static CandidateContainer construct_onemod_cpool(TagPool primitiveTags, TagTrie ixPDB) {
 		
 		if( primitiveTags == null || ixPDB == null )
 			return null;
@@ -28,15 +31,13 @@ public class DBSearch {
 	    
 		int realTag = 0, redunTag = 0;
 		for(Tag tag : longTags){
-			if( tag.get(0).getPeakProperty() != PeakProperty.C_TERM_Y_ION_ONLY &&
-					tag.get(3).getPeakProperty() != PeakProperty.N_TERM_Y_ION_ONLY )
+			if( tag.get(0).getPeakProperty() != PeakProperty.C_TERM_Y_ION_ONLY && tag.get(3).getPeakProperty() != PeakProperty.N_TERM_Y_ION_ONLY )
 			{
 				LinkedList<MODPeptide> bRes= ixPDB.getOneModPeptides(tag.getBIonNtermOffset()-Constants.NTERM_FIX_MOD, tag.sequence().toString(),
 						tag.getBIonCtermOffset()-Constants.CTERM_FIX_MOD, 0, minDelta, maxDelta, Constants.gapTolerance[slotIdx]);
 				cpool.addAll(bRes);
 			}
-			if( tag.get(0).getPeakProperty() != PeakProperty.N_TERM_B_ION_ONLY && 
-					tag.get(3).getPeakProperty() != PeakProperty.C_TERM_B_ION_ONLY )
+			if( tag.get(0).getPeakProperty() != PeakProperty.N_TERM_B_ION_ONLY && tag.get(3).getPeakProperty() != PeakProperty.C_TERM_B_ION_ONLY )
 			{
 				Tag reverseTag= tag.reverseTag();
 				LinkedList<MODPeptide> yRes= ixPDB.getOneModPeptides(reverseTag.getYIonNtermOffset()-Constants.NTERM_FIX_MOD, reverseTag.sequence().toString(),
@@ -48,52 +49,122 @@ public class DBSearch {
 			
 			if( tag.sequence().contains(AminoAcid.getAminoAcid('I')) || tag.sequence().contains(AminoAcid.getAminoAcid('K')) )
 				redunTag--;
-			if( realTag > MODaConst.maxTagPoolSize*2 || redunTag > MODaConst.maxTagPoolSize ) break;//*/
+			if( realTag > MODaConst.maxTagPoolSize*2 || redunTag > MODaConst.maxTagPoolSize ) break;
 		}
 		
 		return new CandidateContainer(cpool);
 	}
-	
-	public	static CandidateContainer construct_multimod_cpool(TagPool primitiveTags, double motherMass, TagTrie ixPDB) {
-		
-		if( primitiveTags == null || ixPDB == null )
+	*/
+
+	// fast : LinkedList 보다 ArrayList 가 조금더 빨라보임.
+	public static CandidateContainer construct_onemod_cpool(TagPool primitiveTags, TagTrie ixPDB) {
+		if (primitiveTags == null || ixPDB == null)
 			return null;
 
 		int slotIdx = ThreadPoolManager.getSlotIndex();
-		double minDelta = (Constants.minModifiedMass < 0)? Constants.minModifiedMass - Constants.gapTolerance[slotIdx] : - Constants.gapTolerance[slotIdx];
-		double maxDelta = (Constants.maxModifiedMass > 0)? Constants.maxModifiedMass + Constants.gapTolerance[slotIdx] : + Constants.gapTolerance[slotIdx];
-		
-		TagPool longTags = primitiveTags.extractAbove(Constants.minTagLengthPeptideShouldContain);
+		double minDelta = (Constants.minModifiedMass < 0)
+				? Constants.minModifiedMass - Constants.gapTolerance[slotIdx]
+				: -Constants.gapTolerance[slotIdx];
+		double maxDelta = (Constants.maxModifiedMass > 0)
+				? Constants.maxModifiedMass + Constants.gapTolerance[slotIdx]
+				: +Constants.gapTolerance[slotIdx];
 
-		LinkedList<TagPeptide> cpool= new LinkedList<TagPeptide>();
+		TagPool longTags = primitiveTags.extractAbove(Constants.minTagLengthPeptideShouldContain);
+		List<MODPeptide> cpool = new ArrayList<>();
+
 		int realTag = 0, redunTag = 0;
-		for(Tag tag : longTags){
-			if( tag.get(0).getPeakProperty() != PeakProperty.C_TERM_Y_ION_ONLY && 
-					tag.get(3).getPeakProperty() != PeakProperty.N_TERM_Y_ION_ONLY )
-			{
-				LinkedList<TagPeptide> bRes= ixPDB.getMultiModPeptides(tag.getBIonNtermOffset()-Constants.NTERM_FIX_MOD, tag.sequence().toString(),
-						tag.getBIonCtermOffset()-Constants.CTERM_FIX_MOD, 0, minDelta, maxDelta, Constants.gapTolerance[slotIdx]);
+		for (Tag tag : longTags) {
+			if (tag.get(0).getPeakProperty() != PeakProperty.C_TERM_Y_ION_ONLY &&
+					tag.get(3).getPeakProperty() != PeakProperty.N_TERM_Y_ION_ONLY) {
+				ArrayList<MODPeptide> bRes = ixPDB.getOneModPeptides(
+						tag.getBIonNtermOffset() - Constants.NTERM_FIX_MOD,
+						tag.sequence().toString(),
+						tag.getBIonCtermOffset() - Constants.CTERM_FIX_MOD,
+						0, minDelta, maxDelta,
+						Constants.gapTolerance[slotIdx]);
 				cpool.addAll(bRes);
 			}
-			if( tag.get(0).getPeakProperty() != PeakProperty.N_TERM_B_ION_ONLY && 
-					tag.get(3).getPeakProperty() != PeakProperty.C_TERM_B_ION_ONLY )
-			{
-				Tag reverseTag= tag.reverseTag();
-				LinkedList<TagPeptide> yRes= ixPDB.getMultiModPeptides(reverseTag.getYIonNtermOffset()-Constants.NTERM_FIX_MOD, reverseTag.sequence().toString(),
-						reverseTag.getYIonCtermOffset()-Constants.CTERM_FIX_MOD, 1, minDelta, maxDelta, Constants.gapTolerance[slotIdx]);
+			if (tag.get(0).getPeakProperty() != PeakProperty.N_TERM_B_ION_ONLY &&
+					tag.get(3).getPeakProperty() != PeakProperty.C_TERM_B_ION_ONLY) {
+				Tag reverseTag = tag.reverseTag();
+				ArrayList<MODPeptide> yRes = ixPDB.getOneModPeptides(
+						reverseTag.getYIonNtermOffset() - Constants.NTERM_FIX_MOD,
+						reverseTag.sequence().toString(),
+						reverseTag.getYIonCtermOffset() - Constants.CTERM_FIX_MOD,
+						1, minDelta, maxDelta,
+						Constants.gapTolerance[slotIdx]);
 				cpool.addAll(yRes);
 			}
+
 			realTag++;
 			redunTag++;
-			
-			if( tag.sequence().contains(AminoAcid.getAminoAcid('I')) || tag.sequence().contains(AminoAcid.getAminoAcid('K')) )
+
+			if (tag.sequence().contains(AminoAcid.getAminoAcid('I')) || tag.sequence().contains(AminoAcid.getAminoAcid('K')))
 				redunTag--;
-			if( realTag > MODaConst.maxTagPoolSize*2 || redunTag > MODaConst.maxTagPoolSize ) break;
+
+			if (realTag > MODaConst.maxTagPoolSize * 2 || redunTag > MODaConst.maxTagPoolSize)
+				break;
 		}
-		
+		return new CandidateContainer(cpool);
+	}
+
+
+	public static CandidateContainer construct_multimod_cpool(TagPool primitiveTags, double motherMass, TagTrie ixPDB) {
+
+		if (primitiveTags == null || ixPDB == null)
+			return null;
+
+		int slotIdx = ThreadPoolManager.getSlotIndex();
+		double minDelta = (Constants.minModifiedMass < 0)
+				? Constants.minModifiedMass - Constants.gapTolerance[slotIdx]
+				: -Constants.gapTolerance[slotIdx];
+		double maxDelta = (Constants.maxModifiedMass > 0)
+				? Constants.maxModifiedMass + Constants.gapTolerance[slotIdx]
+				: +Constants.gapTolerance[slotIdx];
+
+		TagPool longTags = primitiveTags.extractAbove(Constants.minTagLengthPeptideShouldContain);
+		List<TagPeptide> cpool = new ArrayList<>();
+
+		int realTag = 0, redunTag = 0;
+		for (Tag tag : longTags) {
+			if (tag.get(0).getPeakProperty() != PeakProperty.C_TERM_Y_ION_ONLY &&
+					tag.get(3).getPeakProperty() != PeakProperty.N_TERM_Y_ION_ONLY) {
+				List<TagPeptide> bRes = ixPDB.getMultiModPeptides(
+						tag.getBIonNtermOffset() - Constants.NTERM_FIX_MOD,
+						tag.sequence().toString(),
+						tag.getBIonCtermOffset() - Constants.CTERM_FIX_MOD,
+						0, minDelta, maxDelta,
+						Constants.gapTolerance[slotIdx]);
+				cpool.addAll(bRes);
+			}
+
+			if (tag.get(0).getPeakProperty() != PeakProperty.N_TERM_B_ION_ONLY &&
+					tag.get(3).getPeakProperty() != PeakProperty.C_TERM_B_ION_ONLY) {
+				Tag reverseTag = tag.reverseTag();
+				List<TagPeptide> yRes = ixPDB.getMultiModPeptides(
+						reverseTag.getYIonNtermOffset() - Constants.NTERM_FIX_MOD,
+						reverseTag.sequence().toString(),
+						reverseTag.getYIonCtermOffset() - Constants.CTERM_FIX_MOD,
+						1, minDelta, maxDelta,
+						Constants.gapTolerance[slotIdx]);
+				cpool.addAll(yRes);
+			}
+
+			realTag++;
+			redunTag++;
+
+			if (tag.sequence().contains(AminoAcid.getAminoAcid('I')) ||
+					tag.sequence().contains(AminoAcid.getAminoAcid('K')))
+				redunTag--;
+
+			if (realTag > MODaConst.maxTagPoolSize * 2 || redunTag > MODaConst.maxTagPoolSize)
+				break;
+		}
+
 		return new CandidateContainer(cpool, ixPDB);
 	}
-	
+
+
 }
 
 

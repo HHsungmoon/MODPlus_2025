@@ -19,13 +19,14 @@ public class OneMOD {
 
 	public static int[] bestOnlineScore = new int[ThreadPoolManager.numSlots];  // 초기값: 2로 설정 필요
 
+	// feat : 매개변수 안쓰는거 제거
 	public static DPHeap getHeatedPeptides( StemTagTrie stemDB, PGraph graph, TagPool tPool, boolean dynamicPMCorrection ){
 		int slot = ThreadPoolManager.getSlotIndex();
 		bestOnlineScore[slot] = 2;
 		DPHeap annotation = null;
 
 		for( TagTrie stem : stemDB ){
-			CandidateContainer cpool= DBSearch.construct_onemod_cpool(tPool, graph.getCorrectedMW(), stem);
+			CandidateContainer cpool= DBSearch.construct_onemod_cpool(tPool, stem);
 
 			DPHeap sanno = null;
 			if( dynamicPMCorrection )
