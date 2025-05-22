@@ -420,9 +420,9 @@ public class MODPlus {
 		return 0;
 	}
 
-
 	// javac -cp ".:lib/*" -d out $(find . -name "*.java")
 	// java -cp "out:lib/*" MODPlus param.xml
+	// nohup java -cp "out:lib/*" MODPlus param.xml > log.txt 2>&1 &  -> 백그라운드 실행
 	static int modplus_mod_search() throws Exception {
 		System.out.println("Starting MODPlus for modification search!");
 
@@ -473,7 +473,6 @@ public class MODPlus {
 					e.printStackTrace();
 				}
 			}
-
 		}
 
 		System.out.println("[MOD-Plus] Elapsed Time : " + (System.currentTimeMillis() - startTime) / 1000 + " Sec");

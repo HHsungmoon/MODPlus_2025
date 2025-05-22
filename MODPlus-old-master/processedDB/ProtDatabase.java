@@ -5,6 +5,7 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 
+import java.nio.charset.StandardCharsets;
 import msutil.ProtCutter;
 import modi.Constants;
 import modi.Peptide;
@@ -59,12 +60,18 @@ public class ProtDatabase {
 	
 	public String getProteinIdentity(int position) { return proteins[searchProtein(position)]; }
 
+	/*
 	public String getPeptide(int s, int e){ //inclusive, exclusive like substring
 		StringBuffer x= new StringBuffer();
 		for(int i=s; i<e; i++){
 			x.append( (char)sequence[i] );			
 		}	
 		return x.toString();
+	}
+	*/
+
+	public String getPeptide(int s, int e) {
+		return new String(sequence, s, e - s, StandardCharsets.ISO_8859_1);
 	}
 	
 	public String getSequenceAroundPeptide(int s, int e, int around){ //inclusive, exclusive like substring

@@ -60,14 +60,22 @@ public class ProtCutter {
 	}
 	public String getName()	{ return name; }
 	public boolean isSpecified() { return specified; }
-	
+
+
 	public boolean isCleavage( int prev_aa, int next_aa ){
 		if( prev_aa == TERMINAL_RES || next_aa == TERMINAL_RES ) return true;
-		if( cleaveMap[prev_aa-'A'] == C_TERM || cleaveMap[prev_aa-'A'] == BOTH_TERM ) return true;
-		if( cleaveMap[next_aa-'A'] == N_TERM || cleaveMap[next_aa-'A'] == BOTH_TERM ) return true;				
+
+		int tmp = cleaveMap[prev_aa-'A'];
+		if( tmp == C_TERM || tmp == BOTH_TERM )
+			return true;
+
+		tmp = cleaveMap[next_aa-'A'];
+		if( tmp == N_TERM || tmp == BOTH_TERM )
+			return true;
+
 		return false;
 	}
-	
+
 	
 	public static ProtCutter getCutter( String name ){
 		for(ProtCutter e : enzymeTable)
