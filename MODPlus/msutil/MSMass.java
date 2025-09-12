@@ -19,6 +19,7 @@ public class MSMass {
 		return aaMass[aa-'A'];
 	}
 
+
 	public static double getPepMass(String pept) {
 		final int n = pept.length();
 		double sum = 0d;

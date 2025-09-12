@@ -60,7 +60,7 @@ public class TagTrie extends ProtDatabase {
 				for( ; sequence[i] != delimeter; i++){									
 					tagTrie[sequence[i-2]-'A'][sequence[i-1]-'A'][sequence[i]-'A'][tIndex[sequence[i-2]-'A'][sequence[i-1]-'A'][sequence[i]-'A']++] = i-2;
 				}
-				k= i-1;
+				k= i-1;			
 			}
 		}
 	}

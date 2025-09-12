@@ -43,6 +43,7 @@ public class TagChain extends TreeSet<SpecInterpretation> implements Comparable<
 			return -1;
 	}
 
+
 	private static double maxBYSharedIntensity(ArrayList<Peak> exp, ArrayList<Peak> theo) {
 		final double tol = Constants.fragmentTolerance;
 		int i = 0, j = 0;
@@ -78,27 +79,7 @@ public class TagChain extends TreeSet<SpecInterpretation> implements Comparable<
 		//theoPeaks.sort(null); // 정렬이 필요한경우라면..
 		this.mostAbundantBYPeakIntensity = maxBYSharedIntensity(sourceSpectrum, theoPeaks);
 	}
-
-	/*
-	private void setMostAbundantBYPeakIntensity()
-	{
-		ArrayList<Peak> theoPeaks = new ArrayList<Peak>();
-		for(SpecInterpretation t : this)
-			theoPeaks.addAll(t.getTheoreticalPeaks());
-		PeakListComparator comparator = new PeakListComparator(sourceSpectrum, theoPeaks);
-		for(PeakPair pp : comparator.getSharedPeaks())
-		{
-			if(pp.getSecond().getPeakProperty() == PeakProperty.B_ION ||
-					pp.getSecond().getPeakProperty() == PeakProperty.Y_ION)
-			{
-				if(this.mostAbundantBYPeakIntensity <  pp.getFirst().getIntensity())
-					this.mostAbundantBYPeakIntensity = pp.getFirst().getIntensity();
-			}
-		}
-	}
-	*/
-
-
+	
 	public boolean makeGap() {
 		int peptLastIndex = matchedPeptide.size()-1;
 

@@ -10,8 +10,7 @@ public class PRM {
 	static int accuracy = ( Constants.MSMSResolution==1 )? 100 : 10;
 	static int tolerance = (Constants.fragmentTolerance < 1.0/accuracy)? 1 : (int)(Constants.fragmentTolerance*accuracy);
 
-	final double[] bTable, yTable;
-	final double[] sumTable;
+	double[] bTable, yTable;
 	
 	public PRM(PGraph graph){
 		
@@ -40,18 +39,12 @@ public class PRM {
 					yTable[i] = graph.get(pn).getYPRMScore();				
 			}
 		}
-
-		sumTable = new double[matSize];
-		for (int i = 0; i < matSize; i++) {
-			sumTable[i] = bTable[i] + yTable[i];
-		}
 	}
 	
 	public double getPeptMass(){ return prmMW; }
-
-	public final double getScore(double mass) {
-		final int i = (int) (mass * accuracy);
-		return sumTable[i];
+	
+	public double getScore(double mass){
+		return bTable[(int)(mass*accuracy)] + yTable[(int)(mass*accuracy)];
 	}
 
 	/*
@@ -61,17 +54,18 @@ public class PRM {
 	*/
 	public double getScore(double mass, double delta) {
 		// 필드 로컬 캐시 (JIT이 보통 해주지만, 명시해둠)
-		final double acc = this.accuracy;
-		final double[] b = this.bTable;
-		final double[] y = this.yTable;
+		//final double acc = this.accuracy;
+		//final double[] b = this.bTable;
+		//final double[] y = this.yTable;
 
 		// 공통 부분 한 번만 계산
-		final double mAcc = mass * acc;
+		final double mAcc = mass * accuracy;
 		final int iB = (int) mAcc;
-		final int iY = (int) (mAcc + delta * acc);
+		final int iY = (int) (mAcc + delta * accuracy);
 
-		return b[iB] + y[iY];
+		return bTable[iB] + yTable[iY];
 	}
+
 
 	public double massCorrection( boolean dynamicCorrection )
 	{

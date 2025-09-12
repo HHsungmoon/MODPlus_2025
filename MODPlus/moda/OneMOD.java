@@ -17,7 +17,7 @@ import modi.TagPool;
 
 public class OneMOD {
 
-	public static int[] bestOnlineScore = new int[ThreadPoolManager.numSlots];
+	public static int[] bestOnlineScore = new int[ThreadPoolManager.numSlots];  // 초기값: 2로 설정 필요
 
 	public static DPHeap getHeatedPeptides( StemTagTrie stemDB, PGraph graph, TagPool tPool, boolean dynamicPMCorrection ){
 		int slot = ThreadPoolManager.getSlotIndex();
@@ -247,53 +247,41 @@ public class OneMOD {
 	
 		double upperLimit = obsMass+Constants.fragmentTolerance;
 		specMatrix[0][smStart].isAAJump= 1;
-
-		for (int n = smStart + 1; n < smEnd; n++) {
-			for (int m = 0; m < rowMax; m += endingTag) {
-
-				final MatCell currNode = specMatrix[m][n];
-				final double currMass = currNode.mass;   // 필드 캐시(여러 번 쓰임)
-				if (currMass > upperLimit) continue;
-
-				double max = MODaConst.baseScore;
-				MatCell bestParent = null;
-				int bestJump = -1;
-
-				for (int d = 0; d < rowMax; d += endingTag) {
-					final MatCell prevNode = specMatrix[d][n - 1];
-
-					// prev 필드도 로컬로 캐시해서 중복 로드 방지
-					final int prevAA = prevNode.isAAJump;
-					if (prevAA == -1) continue;
-
-					final double prevScore = prevNode.score;
-
-					if (m == d) {
-						// same-row: tie 허용(<=) — 원본과 동일
-						if (max <= prevScore) {
-							max = prevScore;
-							bestParent = prevNode;
-							bestJump = 1;
-						}
-					} else if (m != 0) {
-						// cross-row: 거리 조건 + 엄격 비교(<) — 원본과 동일
-						final double prevMass = prevNode.mass;
-						if (currMass - prevMass < MODaConst.minimumDistance) continue;
-						if (max < prevScore) {
-							max = prevScore;
-							bestParent = prevNode;
-							bestJump = 0;
+		
+		MatCell currNode, prevNode;
+		for(int n=smStart+1 ; n<smEnd ; n++){	
+			for(int m=0; m<rowMax ; m+=endingTag ){
+				
+				currNode = specMatrix[m][n];
+				if( currNode.mass > upperLimit ) continue;				
+				
+				double max = MODaConst.baseScore;	
+				for(int d=0; d<rowMax ; d+=endingTag){
+					
+					prevNode = specMatrix[d][n-1];
+					if( prevNode.isAAJump == -1 ) continue;
+					
+					if( m == d ){
+						if( max <= prevNode.score ){ 
+							max= prevNode.score;			
+							currNode.setParent(prevNode);
+							currNode.isAAJump = 1;	
 						}
 					}
-				}
+					else if( m != 0 ) {
 
-				if (max < 0) continue;
-				if (bestParent != null) currNode.setParent(bestParent);
-				if (bestJump   != -1)   currNode.isAAJump = bestJump;
-
-				// getScore는 선택 확정 후 1회만 (원본 의미 동일)
-				currNode.score = max + prmTable.getScore(currMass, pmzErr);
-			}
+						if( currNode.mass - prevNode.mass < MODaConst.minimumDistance ) continue;
+						
+						if( max < prevNode.score ){
+							max= prevNode.score;		
+							currNode.setParent(prevNode);
+							currNode.isAAJump = 0;
+						}
+					}
+				}			
+				if( max < 0 ) continue;			
+				currNode.score= max + prmTable.getScore(currNode.mass, pmzErr);
+			}				
 		}
 		
 		MatCell initNode = specMatrix[0][smStart], tarNode = specMatrix[endingTag][smEnd-1];
