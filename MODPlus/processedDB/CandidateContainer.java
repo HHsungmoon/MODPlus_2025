@@ -1,62 +1,69 @@
 package processedDB;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
+import java.util.List;
 
 public class CandidateContainer {
-	
+
 	int size = 0;
 	MODPeptide[] modlist;
-	
+
 	public int size() { return size; }
 	public MODPeptide[] getList() { return modlist; }
-	
-	public CandidateContainer( LinkedList<TagPeptide> hmap, TagTrie trie ){ //multi-mod
-		Collections.sort( hmap, new TagPeptComparator() );
 
-		size  = 0;
-		modlist = new ChainTagPeptide[hmap.size()];
+	// Multi-mod: List<TagPeptide> 버전
+	public CandidateContainer(List<TagPeptide> hmap, TagTrie trie) { // multi-mod
+		ArrayList<TagPeptide> list = new ArrayList<TagPeptide>(hmap);
+		list.sort(new TagPeptComparator());
 
-		while( hmap.size() != 0 ){
-			TagPeptide parent = hmap.getFirst();
+		size = 0;
+		modlist = new ChainTagPeptide[list.size()];
+
+		int i = 0, n = list.size();
+		while (i < n) {
+			TagPeptide parent = list.get(i++);
 			ChainTagPeptide ctp = new ChainTagPeptide(parent.pStart, parent.pEnd, parent.mTag);
 			ctp.setConservedRegion(parent.pLeft, parent.pRight);
-			hmap.removeFirst();
-			while( hmap.size() != 0 ){
-				TagPeptide entry = hmap.getFirst();	
-				if( !ctp.extend(parent, entry, trie) ){
+
+			while (i < n) {
+				TagPeptide entry = list.get(i);
+				if (!ctp.extend(parent, entry, trie)) {
 					ctp.arrangeTags();
 					modlist[size++] = ctp;
 					ctp = new ChainTagPeptide(entry.pStart, entry.pEnd, entry.mTag);
 					ctp.setConservedRegion(entry.pLeft, entry.pRight);
-				}	
+				}
 				parent = entry;
-				hmap.removeFirst();
-			}	
+				i++;
+			}
 			ctp.arrangeTags();
 			modlist[size++] = ctp;
-		}		
+		}
 	}
-	
-	public CandidateContainer( LinkedList<MODPeptide> hmap ){ //one-mod
-		Collections.sort( hmap );
-	
-		size  = 0;
-		modlist = new MODPeptide[hmap.size()];
-		
-		while( hmap.size() != 0 ){
-			
-			MODPeptide parent = hmap.getFirst();
-			hmap.removeFirst();
-			while( hmap.size() != 0 ){
-				MODPeptide entry = hmap.getFirst();			
-				if( !parent.extend(entry) ){
-					modlist[size++] = parent;				
+
+	// One-mod: List<MODPeptide> 버전
+	public CandidateContainer(List<MODPeptide> hmap) { // one-mod
+		ArrayList<MODPeptide> list = new ArrayList<MODPeptide>(hmap);
+		Collections.sort(list);
+
+		size = 0;
+		modlist = new MODPeptide[list.size()];
+
+		int i = 0, n = list.size();
+		while (i < n) {
+			MODPeptide parent = list.get(i++);
+			while (i < n) {
+				MODPeptide entry = list.get(i);
+				if (!parent.extend(entry)) {
+					modlist[size++] = parent;
 					parent = entry;
-				}			
-				hmap.removeFirst();
-			}	
+				}
+				i++;
+			}
 			modlist[size++] = parent;
-		}		
+		}
 	}
+
 }

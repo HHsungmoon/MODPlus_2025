@@ -30,30 +30,43 @@ public class StemTagTrie extends ArrayList<TagTrie> {
 		try {									
 			BufferedReader in = new BufferedReader(new FileReader(fileName));
 			String s= "<";
-			StringBuffer buffer;	
+			//StringBuffer buffer;
 			
 			while( !s.startsWith(">") ) {
 				s = in.readLine();
 				if( s == null ) break;
 			}
-		
-			while( s != null ) {
-				Prox protein= new Prox();				
-				protein.setHeader( s.substring(1) );			
-				
-				buffer = new StringBuffer();
-				while( (s = in.readLine()) != null ){
-					if( s.startsWith(">") ) break;
-					for( int aa=0; aa<s.length(); aa++ ){
-						if( Character.isLetter( s.charAt(aa) ) )
-							buffer.append( Character.toUpperCase(s.charAt(aa)) );
+
+			StringBuilder buffer;
+
+			while (!s.startsWith(">")) {
+				s = in.readLine();
+				if (s == null) break;
+			}
+
+			while (s != null) {
+				Prox protein = new Prox();
+				protein.setHeader(s.substring(1));
+
+				// 대충 1024 정도로 초기 용량 주면 재할당 줄어듦 (원하는 값으로 조정)
+				buffer = new StringBuilder(1024);
+
+				while ((s = in.readLine()) != null) {
+					if (s.startsWith(">")) break;
+
+					for (int aa = 0, n = s.length(); aa < n; aa++) {
+						char c = s.charAt(aa);
+						if (Character.isLetter(c)) {
+							buffer.append(Character.toUpperCase(c));
+						}
 					}
 				}
-				if( buffer.length() < 3 ) continue; // check sequence
-				
-				protein.setSequence( buffer.toString() );
+
+				if (buffer.length() < 3) continue; // check sequence
+
+				protein.setSequence(buffer.toString());
 				stemAA += buffer.length();
-				stem.add( protein );
+				stem.add(protein);
 				
 				if( capacityPerStem < stemAA ){
 					stem.setSizeOfEntries(stem.size());

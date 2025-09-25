@@ -2,15 +2,16 @@
 	<search user="Seungjin" title="BeetleGut" >
 
 
-	<!--
-	<dataset local_path="E:\Study_file\git_hub_upload\HanyangProject\data\b1945_293T_proteinID_09B_QE3_122212_mini.mgf" format="mgf" instrument="QTOF" />
+
+	<dataset local_path="E:\Study_file\git_hub_upload\HanyangProject\data\b1945_293T_proteinID_09B_QE3_122212.mgf" format="mgf" instrument="QTOF" />
 	<database local_path="E:\Study_file\git_hub_upload\HanyangProject\data\uniprotkb_taxonomy_id_9606_AND_reviewed_2025_03_05.fasta" />
 	<output  local_path="E:\Study_file\git_hub_upload\HanyangProject\MODPlus_2025\results\"/>
-	-->
 
-	<dataset local_path="/home/hyu2/data_folder/data/PXD001468_mgf/b1906_293T_proteinID_01A_QE3_122212.mgf" format="mgf" instrument="QTOF"/>
-	<database local_path="/home/hyu2/data_folder/data/uniprotkb_taxonomy_id_9606_AND_reviewed_2025_03_05.fasta"/>
-	<output  local_path="/home/hyu2/HSM/subres/b1906_293T_proteinID_1A_QE3_122212"/>
+	<!--
+     <dataset local_path="/home/hyu2/HSM/data/b1945_293T_proteinID_09B_QE3_122212.mgf" format="mgf" instrument="QTOF"/>
+     <database local_path="/home/hyu2/data_folder/data/uniprotkb_taxonomy_id_9606_AND_reviewed_2025_03_05.fasta"/>
+     <output  local_path="/home/hyu2/HSM/subres/b1906_293T_proteinID_02A_QE3_122212"/>
+  -->
 
 
 	<combined_enzyme name="Trypsin" nterm_cleave="" cterm_cleave="KR" />

@@ -736,10 +736,9 @@ public class MODPlus {
 	}
 
 
-
 	// javac -cp ".:lib/*" -d out $(find . -name "*.java")
 	// java -cp "out:lib/*" MODPlus param.xml
-	// nohup java -cp "out:lib/*" MODPlus param.xml > log.txt 2>&1 &  -> 백그라운드 실행
+	// nohup java -cp "out:lib/*" MODPlus param.xml > 09B_QE3.txt 2>&1 &  -> 백그라운드 실행
 	static int modplus_mod_search() throws Exception {
 		System.out.println("Thread Number : " + ThreadPoolManager.numSlots);
 		System.out.println("Starting MODPlus for modification search!");
@@ -770,7 +769,6 @@ public class MODPlus {
 			return 1;
 		}
 		System.out.println();
-
 		long startTime = System.currentTimeMillis();
 
 		// 3. 스캔 데이터 미리 수집
@@ -799,7 +797,9 @@ public class MODPlus {
 		return 0;
 	}
 
-	private static List<Future<String>> runParallelSearch(List<ArrayList<MSMScan>> scanBlocks, StemTagTrie ixPDB, String fileName) throws InterruptedException {
+
+	private static List<Future<String>> runParallelSearch(List<ArrayList<MSMScan>> scanBlocks,
+			StemTagTrie ixPDB, String fileName) throws InterruptedException {
 		final int numThreads = ThreadPoolManager.numSlots;
 		ThreadPoolManager.enterParallelPhase();
 		ExecutorService executor = java.util.concurrent.Executors.newFixedThreadPool(

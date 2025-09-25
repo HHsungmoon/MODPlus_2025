@@ -123,37 +123,6 @@ public class PTMDB extends ArrayList<PTM> {
 		return this.PTMTable;
 	}
 
-/*
-	public PTMSearchResult searchPTM(Sequence seq, double massDiff, PTMPosition position) {
-		int slotIdx = ThreadPoolManager.getSlotIndex();
-		ArrayList<PTMRun> newGapInterpret = new ArrayList<>();
-		double ierror = Math.abs(massDiff);
-
-		if (ierror < Constants.nonModifiedDelta[slotIdx]) {
-			return new PTMSearchResult(newGapInterpret, true);
-		}
-		if (ierror < Constants.gapTolerance[slotIdx]) {
-			PTMRun run = new PTMRun();
-			run.setError(ierror);
-			newGapInterpret.add(run);
-		}
-
-		PTM[] occur = new PTM[seq.size()];
-		int[] numNextFixSite = new int[seq.size()];
-		int numMaxMods = Constants.getMaxPTMOccurrence(seq.size());
-
-		int cum = (Constants.CTERM_FIX_MOD != 0 &&
-				(position == PTMPosition.ANY_C_TERM || position == PTMPosition.PROTEIN_C_TERM)) ? 1 : 0;
-
-		for (int i = seq.size() - 1; i >= 0; i--) {
-			numNextFixSite[i] = seq.get(i).isLabelled() ? ++cum : cum;
-		}
-
-		PTMRunBuilder.runDFS(this, seq, massDiff, position, occur, numNextFixSite, numMaxMods, newGapInterpret);
-
-		return new PTMSearchResult(newGapInterpret, !newGapInterpret.isEmpty());
-	}
-*/
 
 	public PTMSearchResult searchPTM(Sequence seq, double massDiff, PTMPosition position) {
 		// 슬롯별 상수 사용 (기존 구조 유지)

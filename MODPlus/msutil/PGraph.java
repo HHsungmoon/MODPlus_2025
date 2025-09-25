@@ -110,25 +110,7 @@ public class PGraph extends ArrayList<PNode>{
 			setPRMScore( i, charge, 0.9 );
 		}
 	}
-	
-	public PNode getMatchedPNode( double mz ){
-		double it=0;
-		PNode anno = null;
-		int id= binarySearch( mz- Constants.fragmentTolerance );
-		if( this.get(id).getMass() < (mz - Constants.fragmentTolerance) ) return anno;
-		
-		while( this.get(id).getMass() <= mz + Constants.fragmentTolerance ){
-			if( this.get(id).getNorm() > it ){
-				it = this.get(id).getNorm();
-				anno = this.get(id);
-			}
-			id++;
-			if( id == this.size() )
-				break;
-		}
-		return anno;
-	}
-	
+
 	public double getNormOfMatchedPeak( double mz ){
 		int index = -1;
 		if( (index= getPosition(mz)) == -1 ) return 0;
