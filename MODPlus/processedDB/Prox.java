@@ -28,12 +28,8 @@ public class Prox implements Comparable<Prox> {
 			description = h.substring(i+1);
 	}
 	
-	public void setSequence(String s){ sequence= s; }	
-	public String getReverseSequence(){
-		StringBuffer seq = new StringBuffer( this.sequence );		
-		return seq.reverse().toString();
-	}
-	
+	public void setSequence(String s){ sequence= s; }
+
 	public int compareTo(Prox p) {
 		if( accession.compareTo(p.accession) > 0 ) return 1;
 		else if( accession.compareTo(p.accession) == 0 ) return 0;

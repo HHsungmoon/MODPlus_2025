@@ -28,7 +28,6 @@ public class DBSearch {
 
 		TagPool longTags = primitiveTags.extractAbove(Constants.minTagLengthPeptideShouldContain);
 
-		// ⚡ ArrayList로 수집 (정렬·순회 성능 유리)
 		List<MODPeptide> cpool = new ArrayList<MODPeptide>();
 
 		int realTag = 0, redunTag = 0;
@@ -76,7 +75,6 @@ public class DBSearch {
 
 		TagPool longTags = primitiveTags.extractAbove(Constants.minTagLengthPeptideShouldContain);
 
-		// ⚡ ArrayList로 수집
 		List<TagPeptide> cpool = new ArrayList<TagPeptide>();
 		int realTag = 0, redunTag = 0;
 		for (Tag tag : longTags) {

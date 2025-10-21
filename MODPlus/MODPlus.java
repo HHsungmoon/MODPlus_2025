@@ -111,6 +111,8 @@ public class MODPlus {
 						
 					if( file.getName().endsWith(type) ){
 						Constants.SPECTRUM_LOCAL_PATH = file.getPath();
+						int dot = Constants.SPECTRUM_LOCAL_PATH.lastIndexOf('.');
+						Constants.SPECTRUM_FILE_NAME = (dot > 0) ? Constants.SPECTRUM_LOCAL_PATH.substring(0, dot) : Constants.SPECTRUM_LOCAL_PATH;
 						System.out.println("Input datasest : "+Constants.SPECTRUM_LOCAL_PATH);
 						modplus_mod_search();
 					}
@@ -124,304 +126,6 @@ public class MODPlus {
 		}
 	}
 
-	/*
-	protected static int set_parameter(String Prixparam) throws Exception {
-
-		System.out.println("Reading parameter.....");
-
-		// 최대 슬롯 수를 ThreadPoolManager에서 받아옵니다.
-		int numSlots = ThreadPoolManager.numSlots; // 최대 36개 가능
-
-		// 전역 변수들을 슬롯 배열로 초기화합니다.
-		Constants.precursorTolerance = new double[numSlots];
-		Constants.precursorAccuracy = new double[numSlots];
-		Constants.gapTolerance = new double[numSlots];
-		Constants.gapAccuracy = new double[numSlots];
-		Constants.nonModifiedDelta = new double[numSlots];
-		Constants.maxNoOfC13 = new int[numSlots];
-
-		for (int i = 0; i < numSlots; i++) {
-			Constants.precursorTolerance[i] = 0.5;
-			Constants.precursorAccuracy[i] = 0.5;
-			Constants.gapTolerance[i] = 0.6;
-			Constants.gapAccuracy[i] = 1.6;
-			Constants.nonModifiedDelta[i] = Constants.massToleranceForDenovo;
-			Constants.maxNoOfC13[i] = 0;
-		}
-
-		// XML 문서를 읽어옵니다.
-		Document doc;
-		try {
-			doc = new SAXBuilder().build(Prixparam);
-		} catch (JDOMException e) {
-			System.out.println(message[3]);
-			return 1;
-		} catch (IOException e) {
-			System.out.println(message[5]);
-			return 5;
-		}
-
-		Element search = doc.getRootElement();
-		Constants.runDate = DateFormat.getDateInstance().format(new Date());
-		if (search.getAttributeValue("user") != null) {
-			Constants.runUser = search.getAttributeValue("user");
-		}
-		if (search.getAttributeValue("title") != null) {
-			Constants.runTitle = search.getAttributeValue("title");
-		} else {
-			Constants.runTitle = String.valueOf(System.currentTimeMillis());
-		}
-
-		Element dataset = search.getChild("dataset");
-		if (dataset != null) {
-			Constants.SPECTRUM_LOCAL_PATH = dataset.getAttributeValue("local_path");
-			if (Constants.SPECTRUM_LOCAL_PATH.equals("")) {
-				System.out.println(message[4]);
-				return 4;
-			}
-
-			String type = dataset.getAttributeValue("format");
-			if (type.compareToIgnoreCase("mgf") == 0)
-				Constants.SPECTRA_FILE_TYPE = Constants.spectra_format.MGF;
-			else if (type.compareToIgnoreCase("pkl") == 0)
-				Constants.SPECTRA_FILE_TYPE = Constants.spectra_format.PKL;
-			else if (type.compareToIgnoreCase("ms2") == 0)
-				Constants.SPECTRA_FILE_TYPE = Constants.spectra_format.MS2;
-			else if (type.compareToIgnoreCase("dta") == 0)
-				Constants.SPECTRA_FILE_TYPE = Constants.spectra_format.DTA;
-			else if (type.compareToIgnoreCase("mzxml") == 0)
-				Constants.SPECTRA_FILE_TYPE = Constants.spectra_format.MZXML;
-			else if (type.compareToIgnoreCase("zip") == 0)
-				Constants.SPECTRA_FILE_TYPE = Constants.spectra_format.ZIPDTA;
-
-			Constants.INSTRUMENT_NAME = dataset.getAttributeValue("instrument");
-			if (Constants.INSTRUMENT_NAME.equals("QTOF"))
-				Constants.INSTRUMENT_TYPE = Constants.msms_type.QTOF;
-			else
-				Constants.INSTRUMENT_TYPE = Constants.msms_type.TRAP;
-		}
-		System.out.print("Input datasest : " + Constants.SPECTRUM_LOCAL_PATH);
-		System.out.println(" (" + Constants.SPECTRA_FILE_TYPE + " type)");
-
-		Element database = search.getChild("database");
-		if (database != null) {
-			Constants.PROTEIN_DB_LOCAL_PATH = database.getAttributeValue("local_path");
-			if (Constants.PROTEIN_DB_LOCAL_PATH.equals("")) {
-				System.out.println(message[4]);
-				return 4;
-			}
-		}
-		System.out.println("Input database : " + Constants.PROTEIN_DB_LOCAL_PATH);
-
-		Element enzyme = search.getChild("enzyme"); // DEPRECATED
-		if (enzyme != null) {
-			String enzymeName = enzyme.getAttributeValue("name");
-			String cut = enzyme.getAttributeValue("cut");
-			String sence = enzyme.getAttributeValue("sence");
-			Constants.protease = new ProtCutter(enzymeName, cut, sence);
-		}
-
-		Element com_enzyme = search.getChild("combined_enzyme");
-		if (com_enzyme != null) {
-			String enzymeName = com_enzyme.getAttributeValue("name");
-			String nn = com_enzyme.getAttributeValue("nterm_cleave");
-			String cc = com_enzyme.getAttributeValue("cterm_cleave");
-			Constants.protease = new ProtCutter(enzymeName, nn, cc, true);
-		}
-
-		Constants.alkylatedToCys = 0; // DEPRECATED
-		Element cys_alkylated = search.getChild("cys_alkylated");
-		if (cys_alkylated != null) {
-			Constants.alkylationMethod = cys_alkylated.getAttributeValue("name");
-			Constants.alkylatedToCys = Double.valueOf(cys_alkylated.getAttributeValue("massdiff"));
-			AminoAcid.modifiedAminoAcidMass('C', Constants.alkylatedToCys);
-			MSMass.modifiedAminoAcidMass('C', Constants.alkylatedToCys);
-		}
-
-		Element instrument_resolution = search.getChild("instrument_resolution");
-		if (instrument_resolution != null) {
-			Constants.MSResolution = ("high".compareToIgnoreCase(instrument_resolution.getAttributeValue("ms")) == 0) ? 1 : 0;
-			if (Constants.MSResolution == 1)
-				System.out.println("High resolution MS!!");
-			Constants.MSMSResolution = ("high".compareToIgnoreCase(instrument_resolution.getAttributeValue("msms")) == 0) ? 1 : 0;
-			if (Constants.MSMSResolution == 1)
-				System.out.println("High resolution MS/MS!!");
-		}
-
-		Element parameters = search.getChild("parameters");
-		if (parameters != null) {
-			Element param;
-			param = parameters.getChild("enzyme_constraint");
-			if (param != null) {
-				Constants.missCleavages = Integer.valueOf(param.getAttributeValue("max_miss_cleavages"));
-				Constants.numberOfEnzymaticTermini = Integer.valueOf(param.getAttributeValue("min_number_termini"));
-				if (Constants.numberOfEnzymaticTermini > 2)
-					Constants.numberOfEnzymaticTermini = 2;
-			}
-
-			param = parameters.getChild("isotope_error");
-			if (param != null) {
-				if (param.getAttributeValue("min_C13_number") != null)
-					Constants.minNoOfC13 = Integer.valueOf(param.getAttributeValue("min_C13_number"));
-
-				if (param.getAttributeValue("max_C13_number") != null)
-				{
-					for(int i=0; i<numSlots; i++){
-						Constants.maxNoOfC13[i] = Integer.valueOf(param.getAttributeValue("max_C13_number"));
-						if (Constants.maxNoOfC13[i] == 0 && param.getAttributeValue("increment_per_dalton") != null)
-							Constants.rangeForIsotopeIncrement = Integer.valueOf(param.getAttributeValue("increment_per_dalton"));
-					}
-				}
-			}
-
-			param = parameters.getChild("peptide_mass_tol");
-			if (param != null) {
-				if (param.getAttributeValue("unit").compareToIgnoreCase("ppm") == 0) {
-					Constants.PPMTolerance = Double.valueOf(param.getAttributeValue("value"));
-				} else {
-					// 여기서는 precursorTolerance와 precursorAccuracy를 읽은 값을 slot으로 초기화된 배열에 저장 후 사용
-					double tolVal = Double.valueOf(param.getAttributeValue("value"));
-					for (int i = 0; i < numSlots; i++) {
-						Constants.precursorTolerance[i] = tolVal;
-						Constants.precursorAccuracy[i] = tolVal;
-					}
-				}
-			}
-
-			param = parameters.getChild("fragment_ion_tol");
-			if (param != null) {
-				Constants.fragmentTolerance = Double.valueOf(param.getAttributeValue("value"));
-			}
-			param = parameters.getChild("modified_mass_range");
-			if (param != null) {
-				Constants.minModifiedMass = Double.valueOf(param.getAttributeValue("min_value"));
-				Constants.maxModifiedMass = Double.valueOf(param.getAttributeValue("max_value"));
-			}
-		}
-
-		Element protocol = search.getChild("protocol");
-		if (protocol != null) {
-			System.out.print("Protocol Description: ");
-			Element isobaric = protocol.getChild("isobaric_labeling");
-			if (isobaric != null) {
-				if (isobaric.getAttributeValue("reagent") != null) {
-					Constants.isobaricTag = isobaric.getAttributeValue("reagent");
-					Constants.reporterMassOfIsobaricTag = IsobaricTag.getReporterMasses(isobaric.getAttributeValue("reagent"));
-					if (!Constants.isobaricTag.equals(""))
-						System.out.print(Constants.isobaricTag + " Labelled" + ((Constants.reporterMassOfIsobaricTag == null) ? " (NOT Supported)" : " (Supported)"));
-				}
-			}
-			Element modEnrich = protocol.getChild("modification_enrichment");
-			if (modEnrich != null) {
-				if (modEnrich.getAttributeValue("mod") != null) {
-					Constants.enrichedModification = modEnrich.getAttributeValue("mod");
-					if (!Constants.enrichedModification.equals(""))
-						System.out.print(" & " + Constants.enrichedModification + " Enriched" +
-								(("Acetyl".compareToIgnoreCase(Constants.enrichedModification) == 0 || "Phospho".compareToIgnoreCase(Constants.enrichedModification) == 0) ? " (Supported)" : " (NOT Supported)"));
-				}
-			}
-			System.out.println();
-		}
-
-		Element modifications = search.getChild("modifications");
-
-		// PTMDB 슬롯 초기화
-		PTMDB tempFixed = new PTMDB();
-		PTMDB tempVar = new PTMDB();
-
-		if (modifications != null) {
-			double[] fixedAA = new double[26];
-			Element fixed = modifications.getChild("fixed");
-			if (fixed != null) {
-				if (tempFixed.setFixedModificatinos(fixed, fixedAA) == 0) {
-					System.out.println(message[2]);
-					return 2;
-				}
-			}
-			if (tempFixed.size() > 0)
-				System.out.println("Fixed modifications : " + tempFixed.size() + " selected");
-
-			Element variable = modifications.getChild("variable");
-			if (variable != null) {
-				Constants.PTM_FILE_NAME = variable.getAttributeValue("local_path");
-				boolean canBeModifiedOnFixedAA = variable.getAttributeValue("canBeModifiedOnFixedAA").equals("1");
-				Constants.canBeModifiedOnFixedAA = canBeModifiedOnFixedAA;
-				if (Constants.PTM_FILE_NAME != null) {
-					tempVar.setVariableModificatinos(Constants.PTM_FILE_NAME, fixedAA, canBeModifiedOnFixedAA);
-				}
-				tempVar.setVariableModificatinos(variable, fixedAA, canBeModifiedOnFixedAA);
-
-				if (canBeModifiedOnFixedAA) {
-					for (PTM p : tempFixed) {
-						tempVar.add(new PTM(tempVar.size(), "De-" + p.getName(), "",
-								-p.getMassDifference(), 0, p.getResidue(), p.getPTMPosition(), (p.getAbbAA() == 'C') ? 1 : 0));
-					}
-				}
-				if (variable.getAttributeValue("multi_mods") != null && variable.getAttributeValue("multi_mods").equals("0")) {
-					Constants.maxPTMPerGap = Constants.maxPTMPerPeptide = 1;
-				}
-				if (tempVar.size() > 0) {
-					System.out.print("Variable modifications : " + tempVar.size() + " selected (");
-					tempVar.setPTMDiagnosticIon();
-					if (Constants.maxPTMPerPeptide == 1)
-						System.out.println("one modification per peptide)");
-					else
-						System.out.println("multiple modifications per peptide)");
-				}
-			}
-		}
-
-		// 모든 슬롯에 대해 PTMDB 객체를 동일한 내용으로 초기화 및 lookup table 구성
-		Constants.fixedModifications = new PTMDB[numSlots];
-		Constants.variableModifications = new PTMDB[numSlots];
-		for (int i = 0; i < numSlots; i++) {
-			// 여기서는 tempFixed와 tempVar가 읽기 전용이라면 동일한 객체를 여러 슬롯에 할당해도 문제가 없으나,
-			// 만약 각 슬롯에서 수정이 일어난다면 deep copy 또는 clone 구현이 필요합니다.
-			Constants.fixedModifications[i] = tempFixed.deepCopy();
-			Constants.variableModifications[i] = tempVar.deepCopy();
-			Constants.variableModifications[i].constructPTMLookupTable();
-		}
-
-		Element decoy_search = search.getChild("decoy_search");
-		if (decoy_search != null) {
-			if (decoy_search.getAttributeValue("checked") != null) {
-				if ("1".compareTo(decoy_search.getAttributeValue("checked")) == 0) {
-					Constants.targetDecoy = 1;
-					System.out.println("Decoy search checked");
-				}
-			}
-		}
-
-		Element multistages_search = search.getChild("multistages_search");
-		if (multistages_search != null) {
-			if (multistages_search.getAttributeValue("checked") != null) {
-				if ("1".compareTo(multistages_search.getAttributeValue("checked")) == 0) {
-					Constants.multiStagesSearch = 1;
-					Constants.firstSearchProgram = multistages_search.getAttributeValue("program");
-					System.out.println("MultiStages Search checked " + Constants.firstSearchProgram);
-				}
-			}
-		}
-
-		Element mod_map = search.getChild("mod_map");
-		if (mod_map != null) {
-			if (mod_map.getAttributeValue("checked") != null) {
-				if ("1".compareTo(mod_map.getAttributeValue("checked")) == 0) {
-					Constants.runMODmap = 1;
-					System.out.println("MODMap checked");
-				}
-			}
-		}
-
-		Constants.adjustParameters();
-
-		System.out.println("---------print parameter----------");
-		// Constants.printAllConstantsState(1);
-		System.out.println();
-		return 0;
-	}
-	 */
-
 	protected static int set_parameter(String Prixparam) throws Exception {
 
 		System.out.println("Reading parameter.....");
@@ -429,9 +133,6 @@ public class MODPlus {
 		// 최대 슬롯 수를 ThreadPoolManager에서 받아옵니다.
 		final int numSlots = ThreadPoolManager.numSlots; // 최대 36개 가능
 
-		// =========================
-		// 1) XML 먼저 읽기  (예외/리턴 동일)
-		// =========================
 		Document doc;
 		try {
 			doc = new SAXBuilder().build(Prixparam);
@@ -735,7 +436,6 @@ public class MODPlus {
 		return 0;
 	}
 
-
 	// javac -cp ".:lib/*" -d out $(find . -name "*.java")
 	// java -cp "out:lib/*" MODPlus param.xml
 	// nohup java -cp "out:lib/*" MODPlus param.xml > 09B_QE3.txt 2>&1 &  -> 백그라운드 실행
@@ -781,7 +481,7 @@ public class MODPlus {
 		List<Future<String>> futureList = runParallelSearch(allScanBlocks, ixPDB, scaniter.getFileName());
 
 		// 5. 결과 수집 및 출력
-		try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(identifier +"_P.txt")))) {
+		try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(identifier+ Constants.SPECTRUM_FILE_NAME +"_P.txt")))) {
 			for (int i = 0; i < futureList.size(); i++) {
 				try {
 					out.print(futureList.get(i).get());
@@ -806,7 +506,7 @@ public class MODPlus {
 			numThreads,
 			r -> {
 				Thread t = new Thread(() -> {
-					ThreadPoolManager.bindSlotForWorker(); // 워커 스레드에서 1회 바인딩
+					ThreadPoolManager.bindSlotForWorker();
 					r.run();
 				});
 				t.setName("modplus-worker-" + t.getId());
@@ -826,7 +526,7 @@ public class MODPlus {
 					try {
 						return processBlock(idx+1, scanBlocks.size(), block, ixPDB, fileName);
 					} finally {
-						Constants.resetSlot(slot); // 다음 작업자가 같은 슬롯을 재사용할 수도 있으니 clean
+						Constants.resetSlot(slot);
 					}
 				}));
 			}
@@ -956,7 +656,4 @@ public class MODPlus {
 
 		return cands;
 	}
-
-
-
 }
