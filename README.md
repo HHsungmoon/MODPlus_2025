@@ -10,11 +10,13 @@
 
 진행 상황 : 멀티스레드 리팩토링및 알고리즘/자료구조 개선 완료. 
 
+Details : https://www.notion.so/MODPlus-1f1038bdc42b803aa2c7c1b25b63cc33?source=copy_link
+
 최종 성능 : 36코어 서버에서 36배 이상 빠른 성능 달성.
 - CPU 코어 갯수 만큼 분석 시간이 일정하게 단축된다.
 - 분석 속도 개선을 통해 **연구시간 단축 및 효율적 실험 진행**이 가능해 **생명공학 연구에 실질적 기여**가 예상됩니다.
 
-Details : https://www.notion.so/MODPlus-1f1038bdc42b803aa2c7c1b25b63cc33?source=copy_link
+![Image](https://github.com/user-attachments/assets/84dc8124-911b-42aa-99b2-12de5ac504f6)
 
 ---
 
